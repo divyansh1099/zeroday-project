@@ -6,7 +6,7 @@ Finds the **best** system design reads anywhere on the web and emails them to yo
   any site, and their votes are a quality signal. Both recent posts and all-time classics are searched.
 - **Best only, never padded.** `max_articles` is a ceiling, not a target. If only two articles clear
   the bar, you get two; if none do, nothing is sent.
-- **Never repeats.** Everything sent is recorded in `sent.db`.
+- **Never repeats.** Everything sent is recorded in `sent.json`.
 
 ## How articles are chosen
 1. **On-topic:** the title must match system design keywords (popularity alone never qualifies).
