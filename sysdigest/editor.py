@@ -66,14 +66,20 @@ def _per_k(n, words):
     return 1000 * n / max(words, 1)
 
 
-def features(title, html):
+def terms_regex(terms):
+    """Compile a topic vocabulary (list of regex fragments) from config."""
+    return re.compile(r"\b(" + "|".join(terms) + r")\b")
+
+
+def features(title, html, topic_re=None):
+    topic_re = topic_re or TOPIC_TERMS
     soup = BeautifulSoup(html, "lxml")
     text = soup.get_text(" ")
     words = max(len(text.split()), 1)
     link_words = sum(len(a.get_text(" ").split()) for a in soup.find_all("a"))
     return {
         "words": words,
-        "topic": _per_k(len(TOPIC_TERMS.findall(text.lower())), words),
+        "topic": _per_k(len(topic_re.findall(text.lower())), words),
         "quant": _per_k(len(QUANT.findall(text)), words),
         "reasoning": _per_k(len(REASONING.findall(text)), words),
         "experience": _per_k(len(EXPERIENCE.findall(text)), words),
@@ -84,11 +90,14 @@ def features(title, html):
     }
 
 
-def judge(title, html):
-    """Returns (score 0-10, verdict). 0 means rejected outright, with the reason."""
-    f = features(title, html)
+def judge(title, html, topic_re=None):
+    """Returns (score 0-10, verdict). 0 means rejected outright, with the reason.
+
+    topic_re is the topic's vocabulary (default: system design); see config.yaml topics.
+    """
+    f = features(title, html, topic_re)
     if f["security"] >= 5:
-        return 0.0, "security incident, not system design", f
+        return 0.0, "security incident write-up", f
     if f["marketing"] >= 4:
         return 0.0, "marketing / sales content", f
     if f["link_density"] > 0.35:
@@ -97,7 +106,7 @@ def judge(title, html):
     # (e.g. a build story that also covers frontend/mobile, like Reddit's r/Place).
     substantive = f["quant"] >= 4 and f["experience"] >= 1
     if f["topic"] < 30 and not (f["topic"] >= 20 and substantive):
-        return 0.0, "off-topic: body isn't about software systems", f
+        return 0.0, "off-topic: body isn't about this topic", f
     score = (5.0
              + max(min(f["topic"] - 30, 40), 0) / 20  # how deeply it stays on systems (0-2)
              + min(f["quant"], 6) / 3             # concrete numbers (0-2)
@@ -110,8 +119,9 @@ _SENT = re.compile(r"(?<=[.!?])\s+")
 _REPEAT = re.compile(r"\b(\w+) \1\b", re.I)  # "Storage Storage overview": heading residue
 
 
-def why_line(html, max_len=220):
+def why_line(html, max_len=220, topic_re=None):
     """Pick the most informative sentence from the opening as a 'why read this' line."""
+    topic_re = topic_re or TOPIC_TERMS
     text = re.sub(r"\s+", " ", BeautifulSoup(html, "lxml").get_text(" ")).strip()
     sentences = [s for s in _SENT.split(" ".join(text.split()[:700])) if 60 <= len(s) <= max_len]
     if not sentences:
@@ -121,7 +131,7 @@ def why_line(html, max_len=220):
         words = s.split()
         caps = sum(w[:1].isupper() for w in words) / len(words)
         lead_caps = len(words) > 2 and all(w[:1].isupper() for w in words[:3])  # "Mgmtd Requests Nodes ..."
-        return (2 * len(QUANT.findall(s)) + len(TOPIC_TERMS.findall(s.lower()))
+        return (2 * len(QUANT.findall(s)) + len(topic_re.findall(s.lower()))
                 + len(REASONING.findall(s)) - 3 * len(MARKETING.findall(s))
                 - 5 * len(BOILERPLATE.findall(s))
                 - (6 if caps > 0.4 or lead_caps else 0)  # headings / navigation run together

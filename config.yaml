@@ -1,5 +1,9 @@
 # sysdigest: no source list. Articles are discovered from anywhere on the web via
-# community-curated aggregators, then filtered hard for quality.
+# community-curated aggregators (Hacker News, Lobste.rs), then filtered hard for quality.
+# Pick a topic with --topic; each topic has its own discovery queries, title keywords
+# and the vocabulary the built-in editor uses to judge whether an article is on-topic.
+
+default_topic: system-design
 
 max_articles: 5          # an upper bound, never a target
 candidate_pool: 40       # how many top candidates to download per run
@@ -9,75 +13,192 @@ max_images_per_article: 12
 min_editor_score: 7.5    # built-in editor's bar (0-10); raise for an even pickier digest
 max_postmortems: 2       # keep the digest varied
 
-# Discovery engines (they link to any site; votes are a quality signal).
-hackernews:
-  enabled: true
-  recent_days: 60
-  min_points: 150
-  classics_years: 12           # all-time great reads you haven't been sent yet
-  classics_min_points: 500
-  queries:
-    - system design
-    - distributed systems
-    - architecture
-    - scaling
-    - database internals
-    - consensus
-    - postmortem
-    - how we built
-    - replication
-    - caching
-    - message queue
+topics:
+  system-design:
+    title: System Design Digest
+    # editor_terms omitted: uses the built-in system design vocabulary
+    hackernews:
+      enabled: true
+      recent_days: 60
+      min_points: 150
+      classics_years: 12           # all-time great reads you haven't been sent yet
+      classics_min_points: 500
+      queries:
+        - system design
+        - distributed systems
+        - architecture
+        - scaling
+        - database internals
+        - consensus
+        - postmortem
+        - how we built
+        - replication
+        - caching
+        - message queue
 
-lobsters:
-  enabled: true
-  min_score: 20
-  pages: 3
-  tags: [distributed, databases, scaling, performance, networking]
+    lobsters:
+      enabled: true
+      min_score: 20
+      pages: 3
+      tags: [distributed, databases, scaling, performance, networking]
 
-# Title keywords that define "system design". An article with none of these is off-topic.
-keywords:
-  "system design": 4
-  "architecture": 2
-  "distributed": 2.5
-  "scal": 2
-  "consensus": 3
-  "raft": 3
-  "paxos": 3
-  "shard": 2.5
-  "replicat": 2.5
-  "consisten": 2
-  "availability": 1.5
-  "latency": 1.5
-  "throughput": 1.5
-  "load balanc": 2.5
-  "cach": 1.5
-  "queue": 1.5
-  "kafka": 2
-  "database": 1.5
-  "storage": 1.5
-  "postgres": 1.5
-  "sqlite": 1
-  "index": 1
-  "rate limit": 2
-  "outage": 2
-  "postmortem": 2.5
-  "post-mortem": 2.5
-  "incident": 1.5
-  "how we": 1.5
-  "at scale": 2
-  "under the hood": 1.5
-  "internals": 2
-  "microservice": 1.5
-  "migrat": 1
-  "reliab": 1.5
-  "fault": 1.5
-  "clock": 1
-negative_keywords:
-  "announcing": -3
-  "launch": -2
-  "webinar": -4
-  "hiring": -4
-  "release": -1.5
-  "podcast": -3
-  "show hn": -1
+    # Title keywords that define "system design". An article with none of these is off-topic.
+    keywords:
+      "system design": 4
+      "architecture": 2
+      "distributed": 2.5
+      "scal": 2
+      "consensus": 3
+      "raft": 3
+      "paxos": 3
+      "shard": 2.5
+      "replicat": 2.5
+      "consisten": 2
+      "availability": 1.5
+      "latency": 1.5
+      "throughput": 1.5
+      "load balanc": 2.5
+      "cach": 1.5
+      "queue": 1.5
+      "kafka": 2
+      "database": 1.5
+      "storage": 1.5
+      "postgres": 1.5
+      "sqlite": 1
+      "index": 1
+      "rate limit": 2
+      "outage": 2
+      "postmortem": 2.5
+      "post-mortem": 2.5
+      "incident": 1.5
+      "how we": 1.5
+      "at scale": 2
+      "under the hood": 1.5
+      "internals": 2
+      "microservice": 1.5
+      "migrat": 1
+      "reliab": 1.5
+      "fault": 1.5
+      "clock": 1
+    negative_keywords:
+      "announcing": -3
+      "launch": -2
+      "webinar": -4
+      "hiring": -4
+      "release": -1.5
+      "podcast": -3
+      "show hn": -1
+
+  ai-engineering:
+    title: AI Engineering Digest
+    hackernews:
+      enabled: true
+      recent_days: 120
+      min_points: 120
+      classics_years: 3            # the field is young
+      classics_min_points: 400
+      queries:
+        - LLM in production
+        - building with LLMs
+        - AI agents
+        - agentic
+        - RAG
+        - retrieval augmented generation
+        - embeddings
+        - LLM evals
+        - evaluating LLM
+        - prompt engineering
+        - fine-tuning
+        - LLM inference
+        - AI engineering
+        - MCP server
+        - coding agents
+        - GitHub engineering
+        - GitHub Actions
+        - Copilot
+        - Databricks
+        - Spark
+        - lakehouse
+        - data engineering
+        - MLOps
+        - vector database
+    lobsters:
+      enabled: true
+      min_score: 15
+      pages: 4
+      tags: [ai, ml, vibecoding]
+
+    # Title keywords (matched at word start; \b at the end = whole word only).
+    keywords:
+      "llms?\\b": 3
+      "ai\\b": 1.5
+      "agent": 2.5
+      "agentic": 3
+      "rag\\b": 3
+      "retrieval": 3
+      "embedding": 3
+      "evals?\\b": 3
+      "evaluat": 2
+      "prompt": 2
+      "fine-tun": 3
+      "inference": 2.5
+      "context": 1.5
+      "copilot": 2
+      "github": 2
+      "databricks": 3
+      "spark\\b": 2.5
+      "lakehouse": 3
+      "delta lake": 3
+      "data pipeline": 2.5
+      "data engineer": 2.5
+      "mlops": 3
+      "vector": 2
+      "mcp\\b": 2.5
+      "gpt": 1.5
+      "claude": 1.5
+      "model": 1
+      "how we": 2
+      "in production": 3
+      "lessons": 2
+      "building": 1.5
+      "what we learned": 2.5
+      "guide": 1
+    negative_keywords:
+      "launch hn": -6
+      "show hn": -3
+      "ask hn": -6
+      "raises": -4
+      "funding": -4
+      "valuation": -4
+      "acqui": -3
+      "lawsuit": -4
+      "sues": -4
+      "pricing": -3
+      "was down": -5
+      "is down": -5
+      "degraded": -5
+      "announc": -3
+      "introducing": -2
+      "launch": -2
+      "release": -1.5
+      "jobs": -3
+      "layoff": -4
+      "ceo": -3
+      "podcast": -3
+      "webinar": -4
+      "hiring": -4
+
+    # Body vocabulary for the built-in editor (regex fragments, lowercase).
+    editor_terms: [
+      "llms?", "models?", "prompts?", "prompting", "rag", "retrieval", "retriev\\w+",
+      "embeddings?", "vectors?", "agents?", "agentic", "evals?", "evaluations?", "benchmarks?",
+      "fine-?tun\\w+", "inference", "tokens?", "context( window)?", "gpus?", "training",
+      "datasets?", "pipelines?", "lakehouse", "delta", "spark", "databricks", "notebooks?",
+      "warehouse", "etl", "schemas?", "queries", "sql", "github", "actions", "workflows?",
+      "ci", "copilot", "repositor(y|ies)", "pull requests?", "commits?", "deploy\\w*",
+      "production", "apis?", "guardrails?", "hallucinat\\w+", "tools?", "tool calls?",
+      "mcp", "orchestrat\\w+", "observability", "latency", "throughput", "costs?",
+      "cach(e|es|ing)", "index(es|ing)?", "chunk(s|ing)?", "rerank\\w*", "classifier",
+      "outputs?", "inputs?", "responses?", "requests?", "users?", "databases?", "storage",
+      "servers?", "services?", "infrastructure", "scal(e|es|ing)", "accuracy", "metrics?",
+    ]

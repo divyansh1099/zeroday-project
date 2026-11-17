@@ -1,5 +1,9 @@
 # sysdigest
 
+Topics: `system-design` (default) and `ai-engineering` (building with LLMs, agents, RAG, evals,
+GitHub, Databricks/lakehouse...). Choose with `--topic`, e.g. `python main.py -t ai-engineering auto`.
+Add your own topic by copying a block under `topics:` in `config.yaml`.
+
 Finds the **best** system design reads anywhere on the web and emails them to your Kindle as one EPUB.
 
 - **No source list.** Hacker News and Lobste.rs are used only as discovery engines: they link to

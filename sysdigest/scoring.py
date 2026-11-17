@@ -1,17 +1,24 @@
 """Heuristic quality signals: topical relevance, community votes, and article depth."""
 import math
+import re
 
 # Lobsters has ~10x fewer voters than HN; scale so scores are comparable.
 POINT_SCALE = {"Hacker News": 1.0, "Lobsters": 10.0}
 
 
+def _hits(title, weights):
+    """Keywords match at a word start: "scal" matches "scaling", "ai" won't match "main".
+    End a keyword with \\b in config to require the whole word (e.g. "ai\\b")."""
+    return sum(w for kw, w in weights.items() if re.search(r"\b" + kw, title))
+
+
 def relevance(article, keywords, negative):
     """Keyword score on the title. 0 means off-topic, regardless of popularity."""
     title = article["title"].lower()
-    pos = sum(w for kw, w in keywords.items() if kw in title)
+    pos = _hits(title, keywords)
     if pos <= 0:
         return 0.0
-    return pos + sum(w for kw, w in negative.items() if kw in title)
+    return pos + _hits(title, negative)
 
 
 def popularity(article):

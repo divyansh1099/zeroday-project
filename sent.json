@@ -7,6 +7,10 @@
   "sent_at": "2026-11-17",
   "title": "Finding bugs in Raft implementations"
  },
+ "https://bawolf.substack.com/p/embeddings-are-a-good-starting-point": {
+  "sent_at": "2026-11-17",
+  "title": "Embeddings are a good starting point for the AI curious app developer"
+ },
  "https://blog.cloudflare.com/18-november-2025-outage": {
   "sent_at": "2026-11-17",
   "title": "Cloudflare outage on November 18, 2025 post mortem"
@@ -23,9 +27,17 @@
   "sent_at": "2026-11-17",
   "title": "Roblox October Outage Postmortem"
  },
+ "https://eugeneyan.com/writing/llm-lessons": {
+  "sent_at": "2026-11-17",
+  "title": "What we've learned from a year of building with LLMs"
+ },
  "https://github.blog/engineering/architecture-optimization/inside-githubs-new-git-storage-architecture": {
   "sent_at": "2026-11-17",
   "title": "GitHub's new Git storage architecture"
+ },
+ "https://jatorre.github.io/garden": {
+  "sent_at": "2026-11-17",
+  "title": "I gave an agent a lakehouse and control of my garden"
  },
  "https://maknee.github.io/blog/2025/3FS-Performance-Journal-1": {
   "sent_at": "2026-11-17",
@@ -43,9 +55,17 @@
   "sent_at": "2026-11-17",
   "title": "Google Cloud Networking Incident Postmortem"
  },
+ "https://www.anthropic.com/engineering/building-effective-agents": {
+  "sent_at": "2026-11-17",
+  "title": "Building Effective AI Agents"
+ },
  "https://www.iankduncan.com/engineering/2025-11-27-crdt-dictionary": {
   "sent_at": "2026-11-17",
   "title": "The CRDT Dictionary: A Field Guide to Conflict-Free Replicated Data Types"
+ },
+ "https://www.mintlify.com/blog/how-we-built-a-virtual-filesystem-for-our-assistant": {
+  "sent_at": "2026-11-17",
+  "title": "We replaced RAG with a virtual filesystem for our AI documentation assistant"
  },
  "https://www.seangoedecke.com/good-system-design": {
   "sent_at": "2026-11-17",

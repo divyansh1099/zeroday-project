@@ -64,7 +64,7 @@ def fetch(article, cfg):
     article["html"], article["words"], article["images"] = res
     article["depth"] = scoring.depth(article["words"], len(article["images"]), article["html"])
     article["heuristic"] = article["prelim"] + article["depth"]
-    article["editor"], article["reject"], _ = editor.judge(article["title"], article["html"])
+    article["editor"], article["reject"], _ = editor.judge(article["title"], article["html"], cfg["topic_re"])
     return article
 
 
@@ -108,7 +108,7 @@ def auto_picks(pool, cfg, limit, verbose=True):
     max_postmortems outage write-ups so the digest stays varied. Never padded.
     """
     for a in pool:
-        a["editor"], a["reject"], _ = editor.judge(a["title"], a["html"])
+        a["editor"], a["reject"], _ = editor.judge(a["title"], a["html"], cfg["topic_re"])
         # editor judgment dominates; community votes and depth only break ties
         a["final"] = a["editor"] + (a["prelim"] + a["depth"]) / 100
     picked, sites, postmortems = [], set(), 0
@@ -118,7 +118,7 @@ def auto_picks(pool, cfg, limit, verbose=True):
         ok = (a["editor"] >= cfg["min_editor_score"] and d not in sites and len(picked) < limit
               and not (is_pm and postmortems >= cfg["max_postmortems"]))
         if ok:
-            a["why"] = editor.why_line(a["html"])
+            a["why"] = editor.why_line(a["html"], topic_re=cfg["topic_re"])
             picked.append(a)
             sites.add(d)
             postmortems += is_pm
@@ -141,13 +141,13 @@ def editor_picks(picks_file, pool):
     return picked
 
 
-def deliver(picked, send):
+def deliver(picked, send, digest_title):
     if not picked:
         print("Nothing cleared the quality bar this time; not sending anything.")
         return None
     OUT.mkdir(exist_ok=True)
     # Number same-day digests (#2, #3...) so files and Kindle titles never collide.
-    base, n = f"System Design Digest {dt.date.today()}", 1
+    base, n = f"{digest_title} {dt.date.today()}", 1
     while (OUT / f"{base}{f' #{n}' if n > 1 else ''}.epub").exists():
         n += 1
     title = f"{base}{f' #{n}' if n > 1 else ''}"
@@ -161,9 +161,24 @@ def deliver(picked, send):
     return path
 
 
+def load_config(path, topic=None):
+    """Shared settings merged with one topic profile (topic keys win)."""
+    raw = yaml.safe_load(Path(path).read_text())
+    topics = raw.pop("topics")
+    name = topic or raw.pop("default_topic")
+    raw.pop("default_topic", None)
+    if name not in topics:
+        sys.exit(f"Unknown topic {name!r}; choose from: {', '.join(topics)}")
+    cfg = {**raw, **topics[name], "topic": name}
+    terms = cfg.get("editor_terms")
+    cfg["topic_re"] = editor.terms_regex(terms) if terms else editor.TOPIC_TERMS
+    return cfg
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("-c", "--config", default="config.yaml")
+    ap.add_argument("-t", "--topic", help="topic profile from config.yaml (default: default_topic)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("gather", help="discover and download candidates for an editor to review")
     b = sub.add_parser("build", help="build the EPUB from an editor's picks.yaml")
@@ -176,17 +191,18 @@ def main():
     a.add_argument("-n", type=int, help="override max_articles")
     args = ap.parse_args()
 
-    cfg = yaml.safe_load(Path(args.config).read_text())
+    cfg = load_config(args.config, args.topic)
+    print(f"Topic: {cfg['topic']}")
 
     if args.cmd == "gather":
         write_candidates(gather_pool(cfg))
     elif args.cmd == "build":
         picked = editor_picks(args.picks, pickle.loads(POOL.read_bytes()))
-        if deliver(picked, args.send) and (args.send or args.mark):
+        if deliver(picked, args.send, cfg["title"]) and (args.send or args.mark):
             Store().mark(picked)
     else:
         picked = auto_picks(gather_pool(cfg), cfg, args.n or cfg["max_articles"])
-        if deliver(picked, args.send) and args.send:
+        if deliver(picked, args.send, cfg["title"]) and args.send:
             Store().mark(picked)
 
 

@@ -13,7 +13,8 @@ import main
 from sysdigest import editor, epub, extract, mailer, scoring, sources
 from sysdigest.store import Store
 
-CFG = yaml.safe_load(open("config.yaml"))
+CFG = main.load_config("config.yaml", "system-design")
+AI = main.load_config("config.yaml", "ai-engineering")
 
 
 def article(title="How we sharded our database at scale", points=300, source="Hacker News"):
@@ -220,3 +221,24 @@ def test_editor_understands_distributed_data_vocabulary():
             "eventually every replica agrees.</p>") * 30
     score, why_not, _ = editor.judge("A field guide to CRDTs", crdt)
     assert why_not == "" and score > 0
+
+
+def test_title_keywords_match_whole_words():
+    assert scoring.relevance(article("The main reason I said no"), AI["keywords"], AI["negative_keywords"]) == 0
+    assert scoring.relevance(article("What we learned running AI agents in production"),
+                             AI["keywords"], AI["negative_keywords"]) > 5
+
+
+def test_ai_profile_penalizes_launches_and_news():
+    kw, neg = AI["keywords"], AI["negative_keywords"]
+    lessons = scoring.relevance(article("Lessons from building RAG in production"), kw, neg)
+    launch = scoring.relevance(article("Launch HN: Acme (YC W26) – RAG for everyone"), kw, neg)
+    assert launch < lessons / 2
+
+
+def test_ai_profile_editor_vocabulary():
+    body = ("<p>We built a RAG pipeline: documents are chunked, embedded and indexed in a vector "
+            "store, then a reranker picks context for the LLM. Our evals measured accuracy rising "
+            "from 61% to 84% while p95 latency stayed under 900 ms.</p>") * 30
+    assert editor.judge("RAG lessons", body, AI["topic_re"])[1] == ""
+    assert editor.judge("RAG lessons", SHIP_TEXT, AI["topic_re"])[0] == 0
