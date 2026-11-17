@@ -1,5 +1,6 @@
 """Bundle articles into one EPUB (Kindle accepts EPUB via Send to Kindle email)."""
 import datetime as dt
+import hashlib
 import html
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -19,11 +20,13 @@ td, th { border: 1px solid #999; padding: 0.2em 0.4em; }
 """
 
 
-def build_epub(articles, path):
+def build_epub(articles, path, title=None):
     today = dt.date.today().isoformat()
+    # Unique per set of articles, so Kindle never merges two digests from the same day.
+    digest_id = hashlib.sha1("\n".join(a["url"] for a in articles).encode()).hexdigest()[:10]
     book = epub.EpubBook()
-    book.set_identifier(f"sysdigest-{today}")
-    book.set_title(f"System Design Digest {today}")
+    book.set_identifier(f"sysdigest-{today}-{digest_id}")
+    book.set_title(title or f"System Design Digest {today}")
     book.set_language("en")
     book.add_author("sysdigest")
 

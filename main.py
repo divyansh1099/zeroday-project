@@ -146,7 +146,12 @@ def deliver(picked, send):
         print("Nothing cleared the quality bar this time; not sending anything.")
         return None
     OUT.mkdir(exist_ok=True)
-    path = build_epub(picked, OUT / f"system-design-digest-{dt.date.today()}.epub")
+    # Number same-day digests (#2, #3...) so files and Kindle titles never collide.
+    base, n = f"System Design Digest {dt.date.today()}", 1
+    while (OUT / f"{base}{f' #{n}' if n > 1 else ''}.epub").exists():
+        n += 1
+    title = f"{base}{f' #{n}' if n > 1 else ''}"
+    path = build_epub(picked, OUT / f"{title}.epub", title=title)
     print(f"\nBuilt {path} ({path.stat().st_size // 1024} KB) with {len(picked)} articles:")
     for a in picked:
         print(f"  * {a['title']} ({sources.domain(a['url'])})")
