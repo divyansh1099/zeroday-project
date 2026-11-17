@@ -1,57 +1,86 @@
-# Number of articles per digest, and the minimum relevance score to qualify.
-max_articles: 5
-min_score: 3.0
-min_words: 800          # skip short posts / link roundups
-max_age_days: 365       # ignore feed items older than this
+# sysdigest: no source list. Articles are discovered from anywhere on the web via
+# community-curated aggregators, then filtered hard for quality.
+
+max_articles: 5          # an upper bound, never a target
+candidate_pool: 30       # how many top candidates to download and grade per run
+min_words: 1200          # long-form only
 max_images_per_article: 12
 
-feeds:
-  - {name: ByteByteGo,        url: "https://blog.bytebytego.com/feed"}
-  - {name: High Scalability,  url: "https://feeds.feedburner.com/HighScalability"}
-  - {name: Netflix TechBlog,  url: "https://netflixtechblog.com/feed"}
-  - {name: Cloudflare Blog,   url: "https://blog.cloudflare.com/rss/"}
-  - {name: Discord Eng,       url: "https://discord.com/blog/rss.xml"}
-  - {name: Meta Engineering,  url: "https://engineering.fb.com/feed/"}
-  - {name: Uber Engineering,  url: "https://www.uber.com/blog/engineering/rss/"}
-  - {name: Pragmatic Engineer, url: "https://blog.pragmaticengineer.com/rss/"}
-  - {name: Martin Kleppmann,  url: "https://martin.kleppmann.com/feed.xml"}
-  - {name: Brendan Gregg,     url: "https://www.brendangregg.com/blog/rss.xml"}
-  - {name: AWS Architecture,  url: "https://aws.amazon.com/blogs/architecture/feed/"}
-  - {name: Dropbox Tech,      url: "https://dropbox.tech/feed"}
+quality:
+  use_claude: true             # used automatically when Anthropic credentials exist
+  claude_model: claude-opus-5-5
+  min_claude_score: 8          # out of 10; the editor grades harshly
+  min_heuristic_score: 12.0    # fallback bar: relevance + votes + depth
 
-# Hacker News (Algolia API) searches; stories need at least min_points.
+# Discovery engines (they link to any site; votes are a quality signal).
 hackernews:
   enabled: true
+  recent_days: 60
   min_points: 150
-  queries: ["system design", "distributed systems", "scaling architecture", "postmortem"]
+  classics_years: 12           # all-time great reads you haven't been sent yet
+  classics_min_points: 500
+  queries:
+    - system design
+    - distributed systems
+    - architecture
+    - scaling
+    - database internals
+    - consensus
+    - postmortem
+    - how we built
+    - replication
+    - caching
+    - message queue
 
-# Weighted keyword scoring on title (x2) + summary. Add your own.
+lobsters:
+  enabled: true
+  min_score: 20
+  pages: 3
+  tags: [distributed, databases, scaling, performance, networking]
+
+# Title keywords that define "system design". An article with none of these is off-topic.
 keywords:
   "system design": 4
   "architecture": 2
-  "distributed": 2
-  "scalab": 2
-  "consensus": 2
-  "sharding": 2
-  "replication": 2
-  "consistency": 2
+  "distributed": 2.5
+  "scal": 2
+  "consensus": 3
+  "raft": 3
+  "paxos": 3
+  "shard": 2.5
+  "replicat": 2.5
+  "consisten": 2
   "availability": 1.5
   "latency": 1.5
   "throughput": 1.5
-  "load balanc": 2
-  "caching": 1.5
-  "message queue": 2
-  "kafka": 1.5
-  "microservice": 1
-  "database": 1
-  "rate limit": 1.5
-  "how we": 1
-  "postmortem": 2
+  "load balanc": 2.5
+  "cach": 1.5
+  "queue": 1.5
+  "kafka": 2
+  "database": 1.5
+  "storage": 1.5
+  "postgres": 1.5
+  "sqlite": 1
+  "index": 1
+  "rate limit": 2
+  "outage": 2
+  "postmortem": 2.5
+  "post-mortem": 2.5
+  "incident": 1.5
+  "how we": 1.5
+  "at scale": 2
+  "under the hood": 1.5
+  "internals": 2
+  "microservice": 1.5
   "migrat": 1
+  "reliab": 1.5
+  "fault": 1.5
+  "clock": 1
 negative_keywords:
   "announcing": -3
+  "launch": -2
   "webinar": -4
   "hiring": -4
-  "release notes": -3
-  "sponsor": -3
-  "podcast": -2
+  "release": -1.5
+  "podcast": -3
+  "show hn": -1

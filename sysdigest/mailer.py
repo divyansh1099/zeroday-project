@@ -5,12 +5,18 @@ from email.message import EmailMessage
 from pathlib import Path
 
 REQUIRED = ["KINDLE_EMAIL", "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"]
+MAX_ATTACHMENT_MB = 18  # Gmail caps messages at 25 MB; base64 adds ~33%
 
 
 def send_to_kindle(path):
     missing = [k for k in REQUIRED if not os.environ.get(k)]
     if missing:
         raise SystemExit(f"Missing environment variables: {', '.join(missing)} (see README)")
+
+    size_mb = Path(path).stat().st_size / 1e6
+    if size_mb > MAX_ATTACHMENT_MB:
+        raise SystemExit(f"EPUB is {size_mb:.1f} MB; most SMTP providers reject attachments over "
+                         f"{MAX_ATTACHMENT_MB} MB. Lower max_articles or max_images_per_article.")
 
     sender = os.environ.get("FROM_EMAIL", os.environ["SMTP_USER"])
     msg = EmailMessage()
