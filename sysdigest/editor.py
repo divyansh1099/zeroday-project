@@ -24,6 +24,10 @@ TOPIC_TERMS = re.compile(r"\b(" + "|".join([
     r"scal(e|es|ing|able|ability)", r"distributed", r"availability", r"redundan\w+",
     r"postgres\w*", r"mysql", r"redis", r"kafka", r"kubernetes", r"containers?", r"rollouts?",
     r"configuration", r"config", r"routing", r"proxy", r"index(es)?", r"transactions?",
+    # distributed-data vocabulary (CRDTs, consensus, replication theory)
+    r"concurren\w+", r"merg(e|es|ed|ing)", r"crdts?", r"conflicts?", r"coordination",
+    r"converg\w+", r"eventual(ly)?", r"causal\w*", r"vector clocks?", r"lamport", r"idempoten\w+",
+    r"invariants?", r"linearizab\w+", r"serializab\w+", r"partitions?", r"timestamps?",
 ]) + r")\b")
 
 # A number with a unit ("50%", "73 hours", "100 terabytes") or a big count ("7,200 pushes").

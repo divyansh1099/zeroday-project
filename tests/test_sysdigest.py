@@ -210,3 +210,13 @@ def test_why_line_skips_heading_residue():
     html = ("<p>Mgmtd Requests Nodes don't need to maintain connections with every other node.</p>"
             "<p>Each storage node splits files into chunks and replicates them across three servers for durability.</p>")
     assert editor.why_line(html).startswith("Each storage node")
+
+
+def test_editor_understands_distributed_data_vocabulary():
+    """CRDT / consensus theory articles use 'merge', 'concurrent', 'converge' more than 'server'."""
+    crdt = ("<p>Two replicas accept concurrent writes during a partition. Because the merge is "
+            "commutative, both converge to the same state without coordination, and causal "
+            "ordering with vector clocks resolves conflicts. An OR-Set keeps tombstones so "
+            "eventually every replica agrees.</p>") * 30
+    score, why_not, _ = editor.judge("A field guide to CRDTs", crdt)
+    assert why_not == "" and score > 0
