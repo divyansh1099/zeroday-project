@@ -1,60 +1,57 @@
-# Zero-Day Attack Detection System Configuration
+# Number of articles per digest, and the minimum relevance score to qualify.
+max_articles: 5
+min_score: 3.0
+min_words: 800          # skip short posts / link roundups
+max_age_days: 365       # ignore feed items older than this
+max_images_per_article: 12
 
-# Detection Settings
-detection:
-  # Anomaly detection threshold (0.0 to 1.0)
-  anomaly_threshold: 0.7
-  # Behavioral analysis sensitivity
-  behavioral_sensitivity: 0.8
-  # Minimum confidence for alerting
-  min_confidence: 0.75
-  # Enable ML-based detection
-  enable_ml_detection: true
+feeds:
+  - {name: ByteByteGo,        url: "https://blog.bytebytego.com/feed"}
+  - {name: High Scalability,  url: "https://feeds.feedburner.com/HighScalability"}
+  - {name: Netflix TechBlog,  url: "https://netflixtechblog.com/feed"}
+  - {name: Cloudflare Blog,   url: "https://blog.cloudflare.com/rss/"}
+  - {name: Discord Eng,       url: "https://discord.com/blog/rss.xml"}
+  - {name: Meta Engineering,  url: "https://engineering.fb.com/feed/"}
+  - {name: Uber Engineering,  url: "https://www.uber.com/blog/engineering/rss/"}
+  - {name: Pragmatic Engineer, url: "https://blog.pragmaticengineer.com/rss/"}
+  - {name: Martin Kleppmann,  url: "https://martin.kleppmann.com/feed.xml"}
+  - {name: Brendan Gregg,     url: "https://www.brendangregg.com/blog/rss.xml"}
+  - {name: AWS Architecture,  url: "https://aws.amazon.com/blogs/architecture/feed/"}
+  - {name: Dropbox Tech,      url: "https://dropbox.tech/feed"}
 
-# Monitoring Settings
-monitoring:
-  # Log file paths to monitor
-  log_paths:
-    - /var/log/auth.log
-    - /var/log/syslog
-    - /var/log/nginx/access.log
-  # Real-time monitoring enabled
-  real_time: true
-  # Check interval in seconds
-  check_interval: 5
-  # Maximum log file size (MB)
-  max_log_size: 100
+# Hacker News (Algolia API) searches; stories need at least min_points.
+hackernews:
+  enabled: true
+  min_points: 150
+  queries: ["system design", "distributed systems", "scaling architecture", "postmortem"]
 
-# Alerting Settings
-alerting:
-  # Enable email alerts
-  email_enabled: false
-  email_smtp_server: smtp.gmail.com
-  email_smtp_port: 587
-  email_from: alerts@example.com
-  email_to: admin@example.com
-  # Enable console alerts
-  console_enabled: true
-  # Alert severity levels: low, medium, high, critical
-  min_severity: medium
-
-# ML Model Settings
-ml_model:
-  # Model file path
-  model_path: models/detection_model.pkl
-  # Retrain interval (days)
-  retrain_interval: 7
-  # Feature extraction window (seconds)
-  feature_window: 300
-
-# System Settings
-system:
-  # Working directory
-  work_dir: ./data
-  # Log directory
-  log_dir: ./logs
-  # Model directory
-  model_dir: ./models
-  # Report directory
-  report_dir: ./reports
-
+# Weighted keyword scoring on title (x2) + summary. Add your own.
+keywords:
+  "system design": 4
+  "architecture": 2
+  "distributed": 2
+  "scalab": 2
+  "consensus": 2
+  "sharding": 2
+  "replication": 2
+  "consistency": 2
+  "availability": 1.5
+  "latency": 1.5
+  "throughput": 1.5
+  "load balanc": 2
+  "caching": 1.5
+  "message queue": 2
+  "kafka": 1.5
+  "microservice": 1
+  "database": 1
+  "rate limit": 1.5
+  "how we": 1
+  "postmortem": 2
+  "migrat": 1
+negative_keywords:
+  "announcing": -3
+  "webinar": -4
+  "hiring": -4
+  "release notes": -3
+  "sponsor": -3
+  "podcast": -2

@@ -43,3 +43,8 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+# sysdigest
+sent.db
+out/
+.env
