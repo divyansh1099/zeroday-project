@@ -1,0 +1,78 @@
+{
+ "http://blog.pragmaticengineer.com/distributed-architecture-concepts-i-have-learned-while-building-payments-systems": {
+  "sent_at": "2026-11-17",
+  "title": "Distributed architecture concepts I learned when building a large payment system"
+ },
+ "https://antithesis.com/blog/2026/finding-bugs-in-raft-implementations": {
+  "sent_at": "2026-11-17",
+  "title": "Finding bugs in Raft implementations"
+ },
+ "https://blog.cloudflare.com/18-november-2025-outage": {
+  "sent_at": "2026-11-17",
+  "title": "Cloudflare outage on November 18, 2025 post mortem"
+ },
+ "https://blog.cloudflare.com/dns-cache-memory-optimization-1111": {
+  "sent_at": "2026-11-17",
+  "title": "How we saved 100 terabytes of memory by optimizing 1.1.1.1\u2019s DNS cache"
+ },
+ "https://blog.cloudflare.com/post-mortem-on-cloudflare-control-plane-and-analytics-outage": {
+  "sent_at": "2026-11-17",
+  "title": "Post Mortem on Cloudflare Control Plane and Analytics Outage"
+ },
+ "https://blog.roblox.com/2022/01/roblox-return-to-service-10-28-10-31-2021": {
+  "sent_at": "2026-11-17",
+  "title": "Roblox October Outage Postmortem"
+ },
+ "https://eugeneyan.com/writing/llm-lessons": {
+  "sent_at": "2026-11-17",
+  "title": "What we've learned from a year of building with LLMs"
+ },
+ "https://github.blog/ai-and-ml/github-copilot/how-we-make-ai-coding-more-cost-efficient-without-sacrificing-task-quality": {
+  "sent_at": "2026-11-17",
+  "title": "How we make AI coding more cost efficient without sacrificing task quality"
+ },
+ "https://github.blog/ai-and-ml/githubs-model-for-secret-detection-finding-more-secrets-with-less-noise": {
+  "sent_at": "2026-11-17",
+  "title": "GitHub\u2019s model for secret detection: Finding more secrets with less noise"
+ },
+ "https://github.blog/engineering/architecture-optimization/inside-githubs-new-git-storage-architecture": {
+  "sent_at": "2026-11-17",
+  "title": "GitHub's new Git storage architecture"
+ },
+ "https://maknee.github.io/blog/2025/3FS-Performance-Journal-1": {
+  "sent_at": "2026-11-17",
+  "title": "An intro to DeepSeek's distributed file system"
+ },
+ "https://redditblog.com/2017/04/13/how-we-built-rplace": {
+  "sent_at": "2026-11-17",
+  "title": "How We Built r/Place"
+ },
+ "https://shopify.engineering/scaling-inventory-reservations": {
+  "sent_at": "2026-11-17",
+  "title": "We replaced Redis with MySQL for inventory reservations and it scaled"
+ },
+ "https://status.cloud.google.com/incident/cloud-networking/19009": {
+  "sent_at": "2026-11-17",
+  "title": "Google Cloud Networking Incident Postmortem"
+ },
+ "https://www.anthropic.com/engineering/building-effective-agents": {
+  "sent_at": "2026-11-17",
+  "title": "Building Effective AI Agents"
+ },
+ "https://www.databricks.com/blog/build-real-time-next-best-offer-recommender-using-databricks-feature-views": {
+  "sent_at": "2026-11-17",
+  "title": "Build a real-time next-best-offer recommender using Databricks Feature Views"
+ },
+ "https://www.iankduncan.com/engineering/2025-11-27-crdt-dictionary": {
+  "sent_at": "2026-11-17",
+  "title": "The CRDT Dictionary: A Field Guide to Conflict-Free Replicated Data Types"
+ },
+ "https://www.mintlify.com/blog/how-we-built-a-virtual-filesystem-for-our-assistant": {
+  "sent_at": "2026-11-17",
+  "title": "We replaced RAG with a virtual filesystem for our AI documentation assistant"
+ },
+ "https://www.seangoedecke.com/good-system-design": {
+  "sent_at": "2026-11-17",
+  "title": "Good system design"
+ }
+}

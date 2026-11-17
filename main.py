@@ -1,309 +1,213 @@
 #!/usr/bin/env python3
-"""
-Zero-Day Attack Detection System
-Main entry point for the detection system.
-"""
+"""Find the best system design reads on the web and send them to your Kindle.
 
-import sys
+Two ways to run it:
+
+  Editor mode (best quality): a person or an AI agent reads the candidates and picks.
+    python main.py gather                 # discover + download; writes out/candidates/
+    # read out/candidates/*.md, write picks.yaml (see README)
+    python main.py build picks.yaml       # build the EPUB from the picks
+    python main.py build picks.yaml --send   # ...and email it to your Kindle
+
+  Automatic mode (the built-in editor reads every article's full text and judges it):
+    python main.py auto [--send]
+
+Only articles that clear the bar are sent; the digest is never padded to hit a number.
+"""
 import argparse
-import signal
-import time
+import datetime as dt
+import pickle
+import re
+import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+import yaml
+from bs4 import BeautifulSoup
 
-from src.core.detection_engine import DetectionEngine
-from src.core.alert_system import AlertSystem
-from src.utils.config_loader import ConfigLoader
-from src.utils.logger import SystemLogger
-from src.analyzers.log_analyzer import LogAnalyzer
+from sysdigest import editor, scoring, sources
+from sysdigest.epub import build_epub
+from sysdigest.extract import extract
+from sysdigest.mailer import send_to_kindle
+from sysdigest.store import Store
 
-
-class ZeroDayDetectionSystem:
-    """Main application class for zero-day attack detection."""
-    
-    def __init__(self, config_path="config.yaml"):
-        """Initialize the detection system.
-        
-        Args:
-            config_path: Path to configuration file
-        """
-        self.config = ConfigLoader(config_path)
-        self.logger_instance = SystemLogger(
-            log_dir=self.config.get('system', 'log_dir', default='./logs')
-        )
-        self.logger = self.logger_instance.get_logger()
-        
-        self.alert_system = AlertSystem(config=self.config, logger=self.logger_instance)
-        self.detection_engine = DetectionEngine(
-            config=self.config, 
-            logger=self.logger_instance,
-            alert_system=self.alert_system
-        )
-        
-        self.running = False
-    
-    def start(self):
-        """Start the detection system."""
-        self.logger.info("Starting Zero-Day Attack Detection System")
-        self.logger.info(f"Configuration loaded from: {self.config.config_path}")
-        
-        # Check if monitoring is enabled
-        if self.config.get('monitoring', 'real_time', default=True):
-            self.detection_engine.start_monitoring()
-            self.running = True
-            self.logger.info("Real-time monitoring started")
-        else:
-            self.logger.info("Real-time monitoring disabled in config")
-    
-    def stop(self):
-        """Stop the detection system."""
-        self.logger.info("Stopping Zero-Day Attack Detection System")
-        self.detection_engine.stop_monitoring()
-        self.running = False
-        
-        # Generate final report
-        self.alert_system.generate_report()
-        
-        # Print statistics
-        stats = self.detection_engine.get_stats()
-        self.logger.info("=" * 60)
-        self.logger.info("Detection Statistics:")
-        self.logger.info(f"  Total Analyzed: {stats['total_analyzed']}")
-        self.logger.info(f"  Anomalies Detected: {stats['anomalies_detected']}")
-        self.logger.info(f"  Behavioral Threats: {stats['behavioral_threats']}")
-        self.logger.info(f"  ML Threats: {stats['ml_threats']}")
-        self.logger.info(f"  Alerts Generated: {stats['alerts_generated']}")
-        self.logger.info(f"  Runtime: {stats['runtime_seconds']:.2f} seconds")
-        self.logger.info("=" * 60)
-    
-    def analyze_file(self, file_path: str):
-        """Analyze a single log file.
-        
-        Args:
-            file_path: Path to log file
-        """
-        self.logger.info(f"Analyzing log file: {file_path}")
-        
-        log_analyzer = LogAnalyzer()
-        threat_count = 0
-        
-        for log_entry in log_analyzer.read_log_file(file_path):
-            is_threat, confidence, details = self.detection_engine.analyze_log_entry(log_entry)
-            
-            if is_threat:
-                threat_count += 1
-                severity = details.get('severity', 'medium')
-                self.alert_system.send_alert(details, severity)
-        
-        self.logger.info(f"Analysis complete. Threats detected: {threat_count}")
-    
-    def train_model(self, training_file: str, labels_file: str = None):
-        """Train the ML detection model.
-        
-        Args:
-            training_file: Path to training data file (JSON lines)
-            labels_file: Optional path to labels file
-        """
-        self.logger.info(f"Training ML model with data from: {training_file}")
-        
-        import json
-        training_data = []
-        labels = None
-        
-        # Load training data
-        with open(training_file, 'r') as f:
-            for line in f:
-                if line.strip():
-                    training_data.append(json.loads(line))
-        
-        # Load labels if provided
-        if labels_file:
-            with open(labels_file, 'r') as f:
-                labels = [int(line.strip()) for line in f]
-        
-        self.detection_engine.train_ml_model(training_data, labels)
-        self.logger.info("Model training completed")
-    
-    def run_interactive(self):
-        """Run in interactive mode."""
-        self.logger.info("Running in interactive mode. Type 'help' for commands.")
-        
-        commands = {
-            'help': self._print_help,
-            'stats': self._show_stats,
-            'alerts': self._show_alerts,
-            'report': self._generate_report,
-            'quit': lambda: None
-        }
-        
-        while self.running:
-            try:
-                command = input("\n> ").strip().lower()
-                
-                if command == 'quit':
-                    break
-                elif command in commands:
-                    commands[command]()
-                else:
-                    print(f"Unknown command: {command}. Type 'help' for available commands.")
-            
-            except KeyboardInterrupt:
-                break
-            except Exception as e:
-                self.logger.error(f"Error in interactive mode: {e}")
-    
-    def _print_help(self):
-        """Print help message."""
-        print("""
-Available commands:
-  help    - Show this help message
-  stats   - Show detection statistics
-  alerts  - Show recent alerts
-  report  - Generate alert report
-  quit    - Exit the system
-        """)
-    
-    def _show_stats(self):
-        """Show detection statistics."""
-        stats = self.detection_engine.get_stats()
-        print("\nDetection Statistics:")
-        print(f"  Total Analyzed: {stats['total_analyzed']}")
-        print(f"  Anomalies Detected: {stats['anomalies_detected']}")
-        print(f"  Behavioral Threats: {stats['behavioral_threats']}")
-        print(f"  ML Threats: {stats['ml_threats']}")
-        print(f"  Alerts Generated: {stats['alerts_generated']}")
-        print(f"  Runtime: {stats['runtime_seconds']:.2f} seconds")
-    
-    def _show_alerts(self):
-        """Show recent alerts."""
-        alerts = self.alert_system.get_recent_alerts(limit=10)
-        print(f"\nRecent Alerts ({len(alerts)}):")
-        for i, alert in enumerate(alerts, 1):
-            details = alert['details']
-            log_entry = details.get('log_entry', {})
-            print(f"\n{i}. [{alert['severity'].upper()}] {alert['timestamp']}")
-            print(f"   Source: {log_entry.get('source_ip', 'unknown')}")
-            print(f"   Confidence: {details.get('overall_confidence', 0.0):.2%}")
-            print(f"   Message: {log_entry.get('message', '')[:80]}")
-    
-    def _generate_report(self):
-        """Generate alert report."""
-        report = self.alert_system.generate_report()
-        print("\n" + report)
+OUT = Path("out")
+POOL = OUT / "pool.pkl"
+CANDIDATES = OUT / "candidates"
 
 
-def signal_handler(sig, frame):
-    """Handle interrupt signals."""
-    print("\nReceived interrupt signal. Shutting down...")
-    if 'system' in globals():
-        system.stop()
-    sys.exit(0)
+def discover(cfg, store):
+    """Unseen, on-topic candidates, merged across aggregators, best-first."""
+    cands = {}
+    for a in sources.discover(cfg):
+        if store.seen(a["url"]):
+            continue
+        prev = cands.get(a["url"])
+        if prev is None or scoring.popularity(a) > scoring.popularity(prev):
+            cands[a["url"]] = a
+    for a in cands.values():
+        a["relevance"] = scoring.relevance(a, cfg["keywords"], cfg.get("negative_keywords", {}))
+        a["prelim"] = a["relevance"] + scoring.popularity(a)
+    # Feed items skip the title gate: few, unvoted, judged on full text by the editor.
+    on_topic = [a for a in cands.values() if a["relevance"] > 0 or a.get("from_feed")]
+    print(f"{len(cands)} unseen candidates, {len(on_topic)} on-topic")
+    return sorted(on_topic, key=lambda a: a["prelim"], reverse=True)
+
+
+def fetch(article, cfg):
+    try:
+        res = extract(article, cfg["max_images_per_article"])
+    except Exception as e:  # one weird page must not kill the whole digest
+        print(f"  ! extract failed {article['url']}: {e}")
+        return None
+    if not res or res[1] < cfg["min_words"]:
+        return None
+    article["html"], article["words"], article["images"] = res
+    article["depth"] = scoring.depth(article["words"], len(article["images"]), article["html"])
+    article["heuristic"] = article["prelim"] + article["depth"]
+    article["editor"], article["reject"], _ = editor.judge(article["title"], article["html"], cfg["topic_re"])
+    return article
+
+
+def gather_pool(cfg):
+    ranked = discover(cfg, Store())
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        todo = ranked[:cfg["candidate_pool"]]
+        todo += [a for a in ranked[cfg["candidate_pool"]:] if a.get("from_feed")]  # always read feeds
+        fetched = list(ex.map(lambda a: fetch(a, cfg), todo))
+    pool = [a for a in fetched if a]
+    print(f"{len(pool)} long-form articles fetched")
+    return sorted(pool, key=lambda a: (a["editor"], a["heuristic"]), reverse=True)
+
+
+def write_candidates(pool):
+    """Save each candidate as readable text so an editor can judge it."""
+    OUT.mkdir(exist_ok=True)
+    CANDIDATES.mkdir(exist_ok=True)
+    for f in CANDIDATES.glob("*.md"):
+        f.unlink()
+    POOL.write_bytes(pickle.dumps(pool))
+    index = ["# Candidates (built-in editor's score first)\n",
+             "| # | editor | words | imgs | votes | title | verdict / url |",
+             "|---|---|---|---|---|---|---|"]
+    for i, a in enumerate(pool, 1):
+        slug = re.sub(r"[^a-z0-9]+", "-", a["title"].lower()).strip("-")[:50]
+        text = BeautifulSoup(a["html"], "lxml").get_text("\n")
+        text = re.sub(r"\n\s*\n+", "\n\n", text).strip()
+        (CANDIDATES / f"{i:02d}-{slug}.md").write_text(
+            f"# {a['title']}\n\nURL: {a['url']}\nVotes: {a['points']} on {a['source']} "
+            f"({a['comments']} comments)\nWords: {a['words']}  Images: {len(a['images'])}  "
+            f"Editor score: {a['editor']:.1f}/10 {a['reject']}\n\n---\n\n{text}\n")
+        index.append(f"| {i} | {a['editor']:.1f} | {a['words']} | {len(a['images'])} | "
+                     f"{a['points']} {a['source']} | {a['title']} | {a['reject'] or a['url']} |")
+    (CANDIDATES / "INDEX.md").write_text("\n".join(index) + "\n")
+    print(f"Wrote {len(pool)} candidates to {CANDIDATES}/ (see INDEX.md)")
+
+
+def auto_picks(pool, cfg, limit, verbose=True):
+    """Automatic mode: the built-in editor judges each article; the best few are kept.
+
+    Rules: score >= min_editor_score, at most one article per site, at most
+    max_postmortems outage write-ups so the digest stays varied. Never padded.
+    """
+    for a in pool:
+        a["editor"], a["reject"], _ = editor.judge(a["title"], a["html"], cfg["topic_re"])
+        # editor judgment dominates; community votes and depth only break ties
+        a["final"] = a["editor"] + (a["prelim"] + a["depth"]) / 100
+    picked, sites, postmortems = [], set(), 0
+    for a in sorted(pool, key=lambda a: a["final"], reverse=True):
+        d = sources.domain(a["url"])
+        is_pm = bool(editor.POSTMORTEM.search(a["title"]))
+        ok = (a["editor"] >= cfg["min_editor_score"] and d not in sites and len(picked) < limit
+              and not (is_pm and postmortems >= cfg["max_postmortems"]))
+        if ok:
+            a["why"] = editor.why_line(a["html"], topic_re=cfg["topic_re"])
+            picked.append(a)
+            sites.add(d)
+            postmortems += is_pm
+        if verbose:
+            note = a["reject"] or ("" if ok else "passed, but over a variety limit or below the bar")
+            print(f"  {'+' if ok else '-'} [{a['editor']:4.1f}] {a['title'][:60]}  {note}")
+    return picked
+
+
+def editor_picks(picks_file, pool):
+    """Editor mode: picks.yaml is a list of {url, why}, in reading order."""
+    by_url = {a["url"]: a for a in pool}
+    picked = []
+    for p in yaml.safe_load(Path(picks_file).read_text()) or []:
+        a = by_url.get(sources.normalize(p["url"]))
+        if not a:
+            sys.exit(f"Not in the gathered pool (run `gather` first): {p['url']}")
+        a["why"] = p.get("why", "")
+        picked.append(a)
+    return picked
+
+
+def deliver(picked, send, digest_title):
+    if not picked:
+        print("Nothing cleared the quality bar this time; not sending anything.")
+        return None
+    OUT.mkdir(exist_ok=True)
+    # Number same-day digests (#2, #3...) so files and Kindle titles never collide.
+    base, n = f"{digest_title} {dt.date.today()}", 1
+    while (OUT / f"{base}{f' #{n}' if n > 1 else ''}.epub").exists():
+        n += 1
+    title = f"{base}{f' #{n}' if n > 1 else ''}"
+    path = build_epub(picked, OUT / f"{title}.epub", title=title)
+    print(f"\nBuilt {path} ({path.stat().st_size // 1024} KB) with {len(picked)} articles:")
+    for a in picked:
+        print(f"  * {a['title']} ({sources.domain(a['url'])})")
+    if send:
+        send_to_kindle(path)
+        print("Emailed to your Kindle.")
+    return path
+
+
+def load_config(path, topic=None):
+    """Shared settings merged with one topic profile (topic keys win)."""
+    raw = yaml.safe_load(Path(path).read_text())
+    topics = raw.pop("topics")
+    name = topic or raw.pop("default_topic")
+    raw.pop("default_topic", None)
+    if name not in topics:
+        sys.exit(f"Unknown topic {name!r}; choose from: {', '.join(topics)}")
+    cfg = {**raw, **topics[name], "topic": name}
+    terms = cfg.get("editor_terms")
+    cfg["topic_re"] = editor.terms_regex(terms) if terms else editor.TOPIC_TERMS
+    return cfg
 
 
 def main():
-    """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description='Zero-Day Attack Detection System',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Start real-time monitoring
-  python main.py --monitor
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("-c", "--config", default="config.yaml")
+    ap.add_argument("-t", "--topic", help="topic profile from config.yaml (default: default_topic)")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("gather", help="discover and download candidates for an editor to review")
+    b = sub.add_parser("build", help="build the EPUB from an editor's picks.yaml")
+    b.add_argument("picks")
+    b.add_argument("--send", action="store_true", help="email the EPUB to your Kindle")
+    b.add_argument("--mark", action="store_true",
+                   help="record the picks as sent without emailing (delivered another way)")
+    a = sub.add_parser("auto", help="pick automatically with the built-in editor")
+    a.add_argument("--send", action="store_true", help="email the EPUB to your Kindle")
+    a.add_argument("-n", type=int, help="override max_articles")
+    args = ap.parse_args()
 
-  # Analyze a log file
-  python main.py --analyze /var/log/auth.log
+    cfg = load_config(args.config, args.topic)
+    print(f"Topic: {cfg['topic']}")
 
-  # Train ML model
-  python main.py --train training_data.jsonl --labels labels.txt
-
-  # Interactive mode
-  python main.py --interactive
-        """
-    )
-    
-    parser.add_argument(
-        '--config', '-c',
-        default='config.yaml',
-        help='Path to configuration file (default: config.yaml)'
-    )
-    
-    parser.add_argument(
-        '--monitor', '-m',
-        action='store_true',
-        help='Start real-time log monitoring'
-    )
-    
-    parser.add_argument(
-        '--analyze', '-a',
-        metavar='FILE',
-        help='Analyze a single log file'
-    )
-    
-    parser.add_argument(
-        '--train',
-        metavar='FILE',
-        help='Train ML model with training data file'
-    )
-    
-    parser.add_argument(
-        '--labels',
-        metavar='FILE',
-        help='Labels file for supervised training'
-    )
-    
-    parser.add_argument(
-        '--interactive', '-i',
-        action='store_true',
-        help='Run in interactive mode'
-    )
-    
-    args = parser.parse_args()
-    
-    # Register signal handlers
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
-    # Initialize system
-    global system
-    system = ZeroDayDetectionSystem(config_path=args.config)
-    
-    try:
-        if args.train:
-            # Training mode
-            system.train_model(args.train, args.labels)
-        
-        elif args.analyze:
-            # File analysis mode
-            system.analyze_file(args.analyze)
-            system.stop()
-        
-        elif args.monitor or args.interactive:
-            # Monitoring or interactive mode
-            system.start()
-            
-            if args.interactive:
-                system.run_interactive()
-            else:
-                # Keep running until interrupted
-                try:
-                    while system.running:
-                        time.sleep(1)
-                except KeyboardInterrupt:
-                    pass
-            
-            system.stop()
-        
-        else:
-            # Default: show help
-            parser.print_help()
-    
-    except Exception as e:
-        system.logger.error(f"Fatal error: {e}", exc_info=True)
-        sys.exit(1)
+    if args.cmd == "gather":
+        write_candidates(gather_pool(cfg))
+    elif args.cmd == "build":
+        picked = editor_picks(args.picks, pickle.loads(POOL.read_bytes()))
+        if deliver(picked, args.send, cfg["title"]) and (args.send or args.mark):
+            Store().mark(picked)
+    else:
+        picked = auto_picks(gather_pool(cfg), cfg, args.n or cfg["max_articles"])
+        if deliver(picked, args.send, cfg["title"]) and args.send:
+            Store().mark(picked)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-

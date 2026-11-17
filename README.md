@@ -1,210 +1,86 @@
-# Zero-Day Attack Detection System
+# sysdigest
 
-A comprehensive system for detecting previously unknown attacks and anomalies using multiple detection methods including anomaly detection, behavioral analysis, and machine learning.
+Topics: `system-design` (default) and `ai-engineering` (building with LLMs, agents, RAG, evals,
+GitHub, Databricks/lakehouse...). Choose with `--topic`, e.g. `python main.py -t ai-engineering auto`.
+Add your own topic by copying a block under `topics:` in `config.yaml`. A topic can also list a
+few optional `feeds:` (the AI topic adds the GitHub and Databricks engineering blogs, which rarely
+trend on HN); feed posts carry no votes, so they're always read and judged on content alone.
 
-## Features
+Weekly routine: one digest per topic, e.g.
+`python main.py auto --send` and `python main.py -t ai-engineering auto --send`.
 
-- **Multi-Layer Detection**: Combines statistical anomaly detection, behavioral pattern analysis, and ML-based detection
-- **Real-Time Monitoring**: Continuously monitors log files for threats
-- **Multiple Log Formats**: Supports syslog, auth logs, nginx, apache, and JSON logs
-- **Alert System**: Configurable alerting via console and email
-- **ML-Based Detection**: Trainable machine learning models for adaptive detection
-- **Comprehensive Reporting**: Generate detailed reports of detected threats
+Finds the **best** system design reads anywhere on the web and emails them to your Kindle as one EPUB.
 
-## Architecture
+- **No source list.** Hacker News and Lobste.rs are used only as discovery engines: they link to
+  any site, and their votes are a quality signal. Both recent posts and all-time classics are searched.
+- **Best only, never padded.** `max_articles` is a ceiling, not a target. If only two articles clear
+  the bar, you get two; if none do, nothing is sent.
+- **Never repeats.** Everything sent is recorded in `sent.json`.
 
-The system consists of several key components:
+## How articles are chosen
+1. **On-topic:** the title must match system design keywords (popularity alone never qualifies).
+2. **Community-vetted:** at least 150 HN points for recent posts, 500 for classics, or 20 on Lobsters.
+3. **Long-form:** at least 1,200 words; diagrams, code and structure score extra.
+4. **Built-in editor** (`sysdigest/editor.py`, no LLM): reads each article's full text and judges it
+   the way a careful human editor would:
+   - *rejects* articles whose body isn't about software systems (e.g. "Naval Architecture"),
+     security-incident write-ups, sales/marketing pages and link-index pages;
+   - *scores* the rest 0–10 on how deeply they stay on systems, concrete numbers (TB, ms, req/s),
+     reasoning (trade-offs, root causes) and first-hand engineering ("we measured…");
+   - writes a "why read this" line by picking the most informative sentence from the opening.
 
-1. **Detection Engine**: Coordinates all detection modules
-2. **Anomaly Detector**: Statistical analysis using baseline comparison
-3. **Behavioral Analyzer**: Pattern-based detection of suspicious behaviors
-4. **ML Detector**: Machine learning-based detection using Isolation Forest or Random Forest
-5. **Log Analyzer**: Parses and processes various log formats
-6. **Alert System**: Generates and sends alerts for detected threats
+   It was calibrated against hand-labelled keep/cut decisions on real candidates and agrees on 18/18.
+   It's an approximation of a human editor: very good at rejecting junk, rougher at ranking
+   the good articles against each other.
+5. **Variety:** at most one article per site and two postmortems per digest.
 
-## Installation
-
-1. Clone the repository:
+## Two modes
+**Automatic mode** (the built-in editor picks; nothing else needed):
 ```bash
-git clone <repository-url>
-cd Zeroday
+python main.py auto          # build only
+python main.py auto --send   # build and email (records the articles as sent)
 ```
 
-2. Install dependencies:
+**Manual editor mode** (you, or an agent such as Claude Code, make the final call; the
+built-in editor's score is shown next to each candidate):
+```bash
+python main.py gather                    # writes out/candidates/INDEX.md + one .md per article
+# read the candidates, then write picks.yaml in reading order:
+#   - url: https://example.com/post
+#     why: "One line on what you'll learn."
+python main.py build picks.yaml          # builds out/system-design-digest-<date>.epub
+python main.py build picks.yaml --send   # ...and emails it to your Kindle (records it as sent)
+python main.py build picks.yaml --mark   # record as sent when delivered another way
+```
+
+Everything sent is recorded in `sent.json` (commit it so the history follows you).
+
+## Setup
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Configure the system:
-```bash
-# Edit config.yaml with your settings
-nano config.yaml
-```
-
-## Configuration
-
-Edit `config.yaml` to configure:
-
-- **Detection thresholds**: Adjust sensitivity for anomaly and behavioral detection
-- **Log paths**: Specify which log files to monitor
-- **Alert settings**: Configure email and console alerting
-- **ML model settings**: Configure model training and retraining intervals
-
-## Usage
-
-### Real-Time Monitoring
-
-Start the system to monitor logs in real-time:
+1. In Amazon: *Manage Your Content and Devices → Preferences → Personal Document Settings*.
+   Note your **Send-to-Kindle email** and add your sender address to the
+   **Approved Personal Document E-mail List**.
+2. Set environment variables (Gmail: use an [app password](https://myaccount.google.com/apppasswords)):
 
 ```bash
-python main.py --monitor
+export KINDLE_EMAIL=you_xxxx@kindle.com
+export SMTP_HOST=smtp.gmail.com      # SMTP_PORT defaults to 587 (465 = SSL)
+export SMTP_USER=you@gmail.com
+export SMTP_PASSWORD=your-app-password
 ```
 
-### Analyze a Log File
+## Scheduling
+Automatic mode works with plain cron: `0 8 * * 6  cd /path/to/repo && python main.py auto --send`
 
-Analyze a specific log file:
+## Tuning (`config.yaml`)
+- Stricter/looser: `min_editor_score`, `max_postmortems`, `min_words`, `max_articles`
+- Discovery: HN `queries`, point thresholds, `classics_years`; Lobsters `tags`
+- What counts as system design: `keywords` / `negative_keywords`
 
+## Tests
 ```bash
-python main.py --analyze /var/log/auth.log
+python -m pytest -q    # offline; no network, SMTP or API key needed
 ```
-
-### Train ML Model
-
-Train the machine learning model with your data:
-
-```bash
-# Unsupervised learning (no labels)
-python main.py --train training_data.jsonl
-
-# Supervised learning (with labels)
-python main.py --train training_data.jsonl --labels labels.txt
-```
-
-### Interactive Mode
-
-Run in interactive mode for manual control:
-
-```bash
-python main.py --interactive
-```
-
-Available commands:
-- `help` - Show available commands
-- `stats` - Display detection statistics
-- `alerts` - Show recent alerts
-- `report` - Generate alert report
-- `quit` - Exit the system
-
-## Training Data Format
-
-Training data should be in JSON Lines format (one JSON object per line):
-
-```json
-{"timestamp": 1234567890, "source_ip": "192.168.1.1", "user": "admin", "message": "sudo su", "action": "sudo"}
-{"timestamp": 1234567891, "source_ip": "192.168.1.2", "user": "user1", "message": "ls -la", "action": "ls"}
-```
-
-For supervised learning, labels file should contain one label per line (0 for normal, 1 for attack).
-
-## Detection Methods
-
-### 1. Anomaly Detection
-
-Uses statistical methods to detect deviations from baseline behavior:
-- Z-score analysis
-- Feature-based anomaly scoring
-- Adaptive baseline learning
-
-### 2. Behavioral Analysis
-
-Detects suspicious patterns:
-- Unusual request frequency
-- Privilege escalation attempts
-- Command pattern analysis
-- Data exfiltration patterns
-- Unusual access patterns
-
-### 3. ML-Based Detection
-
-Machine learning models for adaptive detection:
-- Isolation Forest for unsupervised anomaly detection
-- Random Forest for supervised classification
-- Feature extraction from log entries
-- Automatic model retraining
-
-## Alert Severity Levels
-
-- **Low**: Minor anomalies detected
-- **Medium**: Suspicious behavior detected
-- **High**: High-confidence threat detection
-- **Critical**: Multiple detection methods flag the same threat
-
-## Output
-
-The system generates:
-
-- **Console Alerts**: Real-time colored alerts in the terminal
-- **Log Files**: Detailed logs in `./logs/`
-- **Alert Reports**: JSON and text reports in `./reports/`
-- **ML Models**: Trained models saved in `./models/`
-
-## Project Structure
-
-```
-Zeroday/
-├── src/
-│   ├── core/
-│   │   ├── detection_engine.py    # Main detection engine
-│   │   └── alert_system.py        # Alert generation
-│   ├── detectors/
-│   │   ├── anomaly_detector.py    # Statistical anomaly detection
-│   │   ├── behavioral_analyzer.py # Behavioral pattern analysis
-│   │   └── ml_detector.py         # ML-based detection
-│   ├── analyzers/
-│   │   └── log_analyzer.py        # Log parsing and analysis
-│   └── utils/
-│       ├── config_loader.py        # Configuration management
-│       └── logger.py              # Logging utilities
-├── config.yaml                     # Configuration file
-├── requirements.txt               # Python dependencies
-├── main.py                        # Main entry point
-└── README.md                      # This file
-```
-
-## Requirements
-
-- Python 3.8+
-- See `requirements.txt` for full dependency list
-
-## Security Considerations
-
-- This system is designed for detection, not prevention
-- Ensure log files have appropriate permissions
-- Store configuration files securely
-- Use environment variables for sensitive credentials (email passwords, etc.)
-- Regularly update and retrain ML models
-
-## Contributing
-
-Contributions are welcome! Please ensure:
-- Code follows PEP 8 style guidelines
-- Add tests for new features
-- Update documentation as needed
-
-## License
-
-[Specify your license here]
-
-## Support
-
-For issues and questions, please open an issue on the repository.
-
-## Future Enhancements
-
-- [ ] Web dashboard for visualization
-- [ ] Database backend for alert storage
-- [ ] Integration with SIEM systems
-- [ ] Advanced ML models (LSTM, Transformer-based)
-- [ ] Distributed monitoring capabilities
-- [ ] Automated response actions
-
