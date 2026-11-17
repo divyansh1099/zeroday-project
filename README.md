@@ -2,7 +2,12 @@
 
 Topics: `system-design` (default) and `ai-engineering` (building with LLMs, agents, RAG, evals,
 GitHub, Databricks/lakehouse...). Choose with `--topic`, e.g. `python main.py -t ai-engineering auto`.
-Add your own topic by copying a block under `topics:` in `config.yaml`.
+Add your own topic by copying a block under `topics:` in `config.yaml`. A topic can also list a
+few optional `feeds:` (the AI topic adds the GitHub and Databricks engineering blogs, which rarely
+trend on HN); feed posts carry no votes, so they're always read and judged on content alone.
+
+Weekly routine: one digest per topic, e.g.
+`python main.py auto --send` and `python main.py -t ai-engineering auto --send`.
 
 Finds the **best** system design reads anywhere on the web and emails them to your Kindle as one EPUB.
 

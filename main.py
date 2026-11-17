@@ -48,7 +48,8 @@ def discover(cfg, store):
     for a in cands.values():
         a["relevance"] = scoring.relevance(a, cfg["keywords"], cfg.get("negative_keywords", {}))
         a["prelim"] = a["relevance"] + scoring.popularity(a)
-    on_topic = [a for a in cands.values() if a["relevance"] > 0]
+    # Feed items skip the title gate: few, unvoted, judged on full text by the editor.
+    on_topic = [a for a in cands.values() if a["relevance"] > 0 or a.get("from_feed")]
     print(f"{len(cands)} unseen candidates, {len(on_topic)} on-topic")
     return sorted(on_topic, key=lambda a: a["prelim"], reverse=True)
 
@@ -71,7 +72,9 @@ def fetch(article, cfg):
 def gather_pool(cfg):
     ranked = discover(cfg, Store())
     with ThreadPoolExecutor(max_workers=8) as ex:
-        fetched = list(ex.map(lambda a: fetch(a, cfg), ranked[:cfg["candidate_pool"]]))
+        todo = ranked[:cfg["candidate_pool"]]
+        todo += [a for a in ranked[cfg["candidate_pool"]:] if a.get("from_feed")]  # always read feeds
+        fetched = list(ex.map(lambda a: fetch(a, cfg), todo))
     pool = [a for a in fetched if a]
     print(f"{len(pool)} long-form articles fetched")
     return sorted(pool, key=lambda a: (a["editor"], a["heuristic"]), reverse=True)

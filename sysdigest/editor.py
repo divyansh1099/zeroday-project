@@ -56,6 +56,10 @@ MARKETING = re.compile(r"\b(" + "|".join([
 SECURITY = re.compile(r"\b(vulnerab\w+|exploit\w*|cve-\d+|malware|phishing|attackers?|"
                       r"payload|compromis\w+|malicious)\b", re.I)
 
+# Analyst-report / award press releases look on-topic but teach nothing.
+PRESS_RELEASE = re.compile(r"\b(gartner|magic quadrant|forrester|named a leader|positioned (highest|furthest)|"
+                           r"press release|analyst report|leader in the)\b", re.I)
+
 BOILERPLATE = re.compile(r"\b(apologi[sz]e|sorry|credits?|sla|thank|we recogni[sz]e|"
                          r"read more|click|newsletter|update:)\b", re.I)
 
@@ -84,6 +88,7 @@ def features(title, html, topic_re=None):
         "reasoning": _per_k(len(REASONING.findall(text)), words),
         "experience": _per_k(len(EXPERIENCE.findall(text)), words),
         "marketing": len(MARKETING.findall(text)),
+        "press": len(PRESS_RELEASE.findall(text)),
         "security": _per_k(len(SECURITY.findall(text)), words),
         "link_density": link_words / words,
         "postmortem": bool(POSTMORTEM.search(title)),
@@ -100,6 +105,8 @@ def judge(title, html, topic_re=None):
         return 0.0, "security incident write-up", f
     if f["marketing"] >= 4:
         return 0.0, "marketing / sales content", f
+    if f["press"] >= 2:
+        return 0.0, "vendor press release", f
     if f["link_density"] > 0.35:
         return 0.0, "link index page, not an article", f
     # Strongly on-topic, or moderately on-topic but dense with first-hand numbers

@@ -7,10 +7,6 @@
   "sent_at": "2026-11-17",
   "title": "Finding bugs in Raft implementations"
  },
- "https://bawolf.substack.com/p/embeddings-are-a-good-starting-point": {
-  "sent_at": "2026-11-17",
-  "title": "Embeddings are a good starting point for the AI curious app developer"
- },
  "https://blog.cloudflare.com/18-november-2025-outage": {
   "sent_at": "2026-11-17",
   "title": "Cloudflare outage on November 18, 2025 post mortem"
@@ -31,13 +27,17 @@
   "sent_at": "2026-11-17",
   "title": "What we've learned from a year of building with LLMs"
  },
+ "https://github.blog/ai-and-ml/github-copilot/how-we-make-ai-coding-more-cost-efficient-without-sacrificing-task-quality": {
+  "sent_at": "2026-11-17",
+  "title": "How we make AI coding more cost efficient without sacrificing task quality"
+ },
+ "https://github.blog/ai-and-ml/githubs-model-for-secret-detection-finding-more-secrets-with-less-noise": {
+  "sent_at": "2026-11-17",
+  "title": "GitHub\u2019s model for secret detection: Finding more secrets with less noise"
+ },
  "https://github.blog/engineering/architecture-optimization/inside-githubs-new-git-storage-architecture": {
   "sent_at": "2026-11-17",
   "title": "GitHub's new Git storage architecture"
- },
- "https://jatorre.github.io/garden": {
-  "sent_at": "2026-11-17",
-  "title": "I gave an agent a lakehouse and control of my garden"
  },
  "https://maknee.github.io/blog/2025/3FS-Performance-Journal-1": {
   "sent_at": "2026-11-17",
@@ -58,6 +58,10 @@
  "https://www.anthropic.com/engineering/building-effective-agents": {
   "sent_at": "2026-11-17",
   "title": "Building Effective AI Agents"
+ },
+ "https://www.databricks.com/blog/build-real-time-next-best-offer-recommender-using-databricks-feature-views": {
+  "sent_at": "2026-11-17",
+  "title": "Build a real-time next-best-offer recommender using Databricks Feature Views"
  },
  "https://www.iankduncan.com/engineering/2025-11-27-crdt-dictionary": {
   "sent_at": "2026-11-17",

@@ -128,6 +128,14 @@ topics:
       pages: 4
       tags: [ai, ml, vibecoding]
 
+    # Optional extra sources: engineering blogs that rarely trend on HN. No votes,
+    # so their posts must pass the editor on content alone.
+    feed_max_age_days: 180
+    feeds:
+      - {name: GitHub Engineering, url: "https://github.blog/engineering/feed/"}
+      - {name: GitHub AI & ML,     url: "https://github.blog/ai-and-ml/feed/"}
+      - {name: Databricks Blog,    url: "https://www.databricks.com/feed"}
+
     # Title keywords (matched at word start; \b at the end = whole word only).
     keywords:
       "llms?\\b": 3

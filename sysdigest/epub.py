@@ -44,14 +44,16 @@ def build_epub(articles, path, title=None):
         ch = epub.EpubHtml(title=a["title"], file_name=f"a{i}.xhtml", lang="en")
         ch.add_item(style)
         site = urlsplit(a["url"]).netloc.removeprefix("www.")
+        community = (f"<a href=\"{html.escape(a['discussion'])}\">{a['points']} pts on "
+                     f"{html.escape(a['source'])}</a>" if a["points"]
+                     else f"via {html.escape(a['source'])}")
         why = f"<p class=\"why\">{html.escape(a['why'])}</p>" if a.get("why") else ""
         ch.content = (
             f"<h1>{html.escape(a['title'])}</h1>"
             f"<p class=\"meta\">{html.escape(site)} &middot; {published} &middot; "
             f"~{max(1, a['words'] // 230)} min read &middot; "
             f"<a href=\"{html.escape(a['url'])}\">original</a> &middot; "
-            f"<a href=\"{html.escape(a['discussion'])}\">{a['points']} pts on "
-            f"{html.escape(a['source'])}</a></p>{why}{a['html']}"
+            f"{community}</p>{why}{a['html']}"
         )
         book.add_item(ch)
         chapters.append(ch)

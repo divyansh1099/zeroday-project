@@ -1,12 +1,16 @@
 """Discover candidate articles from anywhere on the web.
 
-There is no fixed list of blogs. Hacker News and Lobste.rs are used purely as
-discovery engines: they link to any site, and their votes are a quality signal.
+Hacker News and Lobste.rs are the discovery engines: they link to any site, and
+their votes are a quality signal. A topic can optionally add a few RSS feeds
+(e.g. vendor engineering blogs that rarely trend on HN); those items carry no
+votes, so they must earn their place on content alone.
 """
+import calendar
 import time
 from datetime import datetime
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+import feedparser
 import requests
 
 HEADERS = {
@@ -87,8 +91,29 @@ def from_lobsters(cfg):
                                      s["score"], s.get("comment_count", 0), s["short_id_url"])
 
 
+def from_feeds(feeds, max_age_days):
+    cutoff = time.time() - max_age_days * 86400
+    for feed in feeds:
+        try:
+            r = requests.get(feed["url"], headers=HEADERS, timeout=20)
+            r.raise_for_status()
+            entries = feedparser.parse(r.content).entries
+        except Exception as e:
+            print(f"  ! feed {feed['name']}: {e}")
+            continue
+        for e in entries:
+            ts = e.get("published_parsed") or e.get("updated_parsed")
+            published = calendar.timegm(ts) if ts else time.time()
+            if published >= cutoff and e.get("link") and is_article(e["link"]):
+                c = _candidate(e.get("title", ""), e["link"], feed["name"], published, 0, 0, e["link"])
+                c["from_feed"] = True
+                yield c
+
+
 def discover(cfg):
     if cfg["hackernews"].get("enabled", True):
         yield from from_hackernews(cfg["hackernews"])
     if cfg["lobsters"].get("enabled", True):
         yield from from_lobsters(cfg["lobsters"])
+    if cfg.get("feeds"):
+        yield from from_feeds(cfg["feeds"], cfg.get("feed_max_age_days", 180))

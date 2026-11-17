@@ -242,3 +242,20 @@ def test_ai_profile_editor_vocabulary():
             "from 61% to 84% while p95 latency stayed under 900 ms.</p>") * 30
     assert editor.judge("RAG lessons", body, AI["topic_re"])[1] == ""
     assert editor.judge("RAG lessons", SHIP_TEXT, AI["topic_re"])[0] == 0
+
+
+def test_feed_items_are_unvoted_and_flagged():
+    rss = (b'<rss version="2.0"><channel><item><title>Clean data was never enough</title>'
+           b'<link>https://www.databricks.com/blog/clean-data</link>'
+           b'<pubDate>Mon, 16 Nov 2026 10:00:00 GMT</pubDate></item></channel></rss>')
+    resp = SimpleNamespace(content=rss, raise_for_status=lambda: None)
+    with mock.patch("requests.get", return_value=resp):
+        items = list(sources.from_feeds([{"name": "Databricks Blog", "url": "https://x/feed"}], 3650))
+    assert len(items) == 1 and items[0]["from_feed"] and items[0]["points"] == 0
+    assert items[0]["source"] == "Databricks Blog"
+
+
+def test_editor_rejects_vendor_press_releases():
+    pr = ("<p>We are proud to be named a Leader in the 2026 Gartner Magic Quadrant for data lakehouse "
+          "platforms. Our LLM agents, RAG pipelines, Spark and Delta tables scale to production.</p>") * 20
+    assert editor.judge("We're a Leader", pr, AI["topic_re"])[1] == "vendor press release"
