@@ -46,6 +46,7 @@ Thumbs.db
 
 # sysdigest
 sent.db
+picks.yaml
 out/
 .env
 .pytest_cache/

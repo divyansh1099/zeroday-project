@@ -1,0 +1,22 @@
+{
+ "https://blog.cloudflare.com/18-november-2025-outage": {
+  "sent_at": "2026-11-17",
+  "title": "Cloudflare outage on November 18, 2025 post mortem"
+ },
+ "https://blog.cloudflare.com/dns-cache-memory-optimization-1111": {
+  "sent_at": "2026-11-17",
+  "title": "How we saved 100 terabytes of memory by optimizing 1.1.1.1\u2019s DNS cache"
+ },
+ "https://blog.roblox.com/2022/01/roblox-return-to-service-10-28-10-31-2021": {
+  "sent_at": "2026-11-17",
+  "title": "Roblox October Outage Postmortem"
+ },
+ "https://github.blog/engineering/architecture-optimization/inside-githubs-new-git-storage-architecture": {
+  "sent_at": "2026-11-17",
+  "title": "GitHub's new Git storage architecture"
+ },
+ "https://www.seangoedecke.com/good-system-design": {
+  "sent_at": "2026-11-17",
+  "title": "Good system design"
+ }
+}

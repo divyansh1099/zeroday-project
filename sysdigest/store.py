@@ -1,21 +1,18 @@
-"""SQLite record of articles already sent, so you never get repeats."""
-import sqlite3
+"""Record of articles already sent (a JSON file, tracked in git so it survives anywhere)."""
+import json
 import time
+from pathlib import Path
 
 
 class Store:
-    def __init__(self, path="sent.db"):
-        self.db = sqlite3.connect(path)
-        self.db.execute(
-            "CREATE TABLE IF NOT EXISTS sent (url TEXT PRIMARY KEY, title TEXT, sent_at REAL)"
-        )
+    def __init__(self, path="sent.json"):
+        self.path = Path(path)
+        self.sent = json.loads(self.path.read_text()) if self.path.exists() else {}
 
     def seen(self, url):
-        return self.db.execute("SELECT 1 FROM sent WHERE url=?", (url,)).fetchone() is not None
+        return url in self.sent
 
     def mark(self, articles):
-        with self.db:
-            self.db.executemany(
-                "INSERT OR IGNORE INTO sent VALUES (?,?,?)",
-                [(a["url"], a["title"], time.time()) for a in articles],
-            )
+        for a in articles:
+            self.sent[a["url"]] = {"title": a["title"], "sent_at": time.strftime("%Y-%m-%d")}
+        self.path.write_text(json.dumps(self.sent, indent=1, sort_keys=True) + "\n")

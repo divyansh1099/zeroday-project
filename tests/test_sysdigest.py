@@ -10,7 +10,7 @@ import yaml
 from PIL import Image
 
 import main
-from sysdigest import epub, extract, judge, mailer, scoring, sources
+from sysdigest import epub, extract, mailer, scoring, sources
 from sysdigest.store import Store
 
 CFG = yaml.safe_load(open("config.yaml"))
@@ -92,35 +92,39 @@ def test_extract_rejects_non_html():
 
 
 # --- selection ---------------------------------------------------------------
-def pooled(title, prelim, depth, domain="ex.com"):
+def pooled(title, heuristic, domain="ex.com"):
     a = article(title)
-    a.update(url=f"https://{domain}/{title}", prelim=prelim, depth=depth, html="<p>x</p>")
+    a.update(url=f"https://{domain}/{title}", heuristic=heuristic, html="<p>x</p>")
     return a
 
 
-def test_select_heuristic_bar_and_one_per_site():
-    pool = [pooled("great", 10, 5, "a.com"), pooled("also-great-same-site", 10, 4, "a.com"),
-            pooled("weak", 3, 1, "b.com"), pooled("good", 9, 5, "c.com")]
-    with mock.patch.object(judge, "available", return_value=False):
-        picked = main.select(pool, CFG, limit=5)
+def test_auto_mode_bar_and_one_per_site():
+    pool = [pooled("great", 15, "a.com"), pooled("also-great-same-site", 14, "a.com"),
+            pooled("good", 13, "c.com"), pooled("weak", 4, "b.com")]
+    picked = main.heuristic_picks(pool, CFG, limit=5)
     assert [a["title"] for a in picked] == ["great", "good"]  # never padded with "weak"
 
 
-def test_select_with_claude_verdicts():
-    pool = [pooled("deep", 1, 1, "a.com"), pooled("fluff", 50, 9, "b.com")]
-    verdicts = {"deep": judge.Verdict(is_system_design=True, score=9, why="Great trade-offs."),
-                "fluff": judge.Verdict(is_system_design=False, score=9, why="Marketing.")}
-    fake = mock.Mock(grade=lambda a: verdicts[a["title"]])
-    with mock.patch.object(judge, "available", return_value=True), \
-         mock.patch.object(judge, "Judge", return_value=fake):
-        picked = main.select(pool, CFG, limit=5)
-    assert [a["title"] for a in picked] == ["deep"]
-    assert picked[0]["why"] == "Great trade-offs."
+def test_editor_picks_keep_order_and_why(tmp_path):
+    pool = [pooled("one", 1), pooled("two", 1)]
+    picks = tmp_path / "picks.yaml"
+    picks.write_text("- url: https://ex.com/two/?utm_source=x\n  why: Read me first.\n"
+                     "- url: https://ex.com/one\n")
+    picked = main.editor_picks(picks, pool)
+    assert [a["title"] for a in picked] == ["two", "one"]
+    assert picked[0]["why"] == "Read me first." and picked[1]["why"] == ""
+
+
+def test_editor_picks_reject_unknown_url(tmp_path):
+    picks = tmp_path / "picks.yaml"
+    picks.write_text("- url: https://nowhere.com/x\n")
+    with pytest.raises(SystemExit):
+        main.editor_picks(picks, [pooled("one", 1)])
 
 
 # --- output ------------------------------------------------------------------
 def test_epub_and_mail(tmp_path, monkeypatch):
-    a = pooled("t", 1, 1)
+    a = pooled("t", 1)
     a.update(words=2000, why="Worth it.", images=[("img_1.png", "image/png", image_bytes("PNG"))],
              html='<p>hello</p><img src="images/img_1.png"/>')
     path = epub.build_epub([a], tmp_path / "d.epub")
@@ -138,6 +142,7 @@ def test_epub_and_mail(tmp_path, monkeypatch):
 
 
 def test_store_dedupes(tmp_path):
-    s = Store(tmp_path / "s.db")
-    s.mark([article()])
+    path = tmp_path / "sent.json"
+    Store(path).mark([article()])
+    s = Store(path)  # reloads from disk
     assert s.seen("https://ex.com/post") and not s.seen("https://ex.com/other")

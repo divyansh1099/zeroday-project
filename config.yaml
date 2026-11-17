@@ -2,15 +2,11 @@
 # community-curated aggregators, then filtered hard for quality.
 
 max_articles: 5          # an upper bound, never a target
-candidate_pool: 30       # how many top candidates to download and grade per run
+candidate_pool: 40       # how many top candidates to download per run
 min_words: 1200          # long-form only
 max_images_per_article: 12
 
-quality:
-  use_claude: true             # used automatically when Anthropic credentials exist
-  claude_model: claude-opus-5-5
-  min_claude_score: 8          # out of 10; the editor grades harshly
-  min_heuristic_score: 12.0    # fallback bar: relevance + votes + depth
+min_heuristic_score: 12.0   # bar for `auto` mode: relevance + votes + depth
 
 # Discovery engines (they link to any site; votes are a quality signal).
 hackernews:

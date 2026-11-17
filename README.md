@@ -12,11 +12,29 @@ Finds the **best** system design reads anywhere on the web and emails them to yo
 1. **On-topic:** the title must match system design keywords (popularity alone never qualifies).
 2. **Community-vetted:** at least 150 HN points for recent posts, 500 for classics, or 20 on Lobsters.
 3. **Long-form:** at least 1,200 words; diagrams, code and structure score extra.
-4. **Claude editor (optional, recommended):** Claude reads each finalist in full and grades it
-   harshly out of 10. Only articles scoring 8+ that are really about system design are sent, and its
-   one-line "why it's worth reading" appears at the top of each chapter.
-   Without Anthropic credentials, a heuristic bar (relevance + votes + depth) is used instead.
-5. At most one article per site per digest.
+4. **Editor review:** someone actually reads the finalists and picks only the great ones,
+   adding a one-line "why it's worth reading" to each chapter. The editor can be you or an AI agent
+   such as Claude Code; no LLM API is involved.
+
+## Two modes
+**Editor mode** (best quality):
+```bash
+python main.py gather                    # writes out/candidates/INDEX.md + one .md per article
+# read the candidates, then write picks.yaml in reading order:
+#   - url: https://example.com/post
+#     why: "One line on what you'll learn."
+python main.py build picks.yaml          # builds out/system-design-digest-<date>.epub
+python main.py build picks.yaml --send   # ...and emails it to your Kindle (records it as sent)
+python main.py build picks.yaml --mark   # record as sent when delivered another way
+```
+
+**Automatic mode** (no editor; a heuristic bar of relevance + votes + depth):
+```bash
+python main.py auto          # build only
+python main.py auto --send   # build and email
+```
+
+Everything sent is recorded in `sent.json` (commit it so the history follows you).
 
 ## Setup
 ```bash
@@ -33,22 +51,13 @@ export KINDLE_EMAIL=you_xxxx@kindle.com
 export SMTP_HOST=smtp.gmail.com      # SMTP_PORT defaults to 587 (465 = SSL)
 export SMTP_USER=you@gmail.com
 export SMTP_PASSWORD=your-app-password
-export ANTHROPIC_API_KEY=sk-ant-...  # optional: turns on the Claude editor
 ```
 
-Grading costs roughly $0.20–0.60 per run with the default `candidate_pool: 30`.
-
-## Usage
-```bash
-python main.py --dry-run   # build out/system-design-digest-<date>.epub, send nothing
-python main.py             # send to Kindle
-python main.py -n 3        # at most 3 articles this time
-```
-
-Run weekly with cron: `0 8 * * 6  cd /path/to/repo && python main.py`
+## Scheduling
+Automatic mode works with plain cron: `0 8 * * 6  cd /path/to/repo && python main.py auto --send`
 
 ## Tuning (`config.yaml`)
-- Stricter/looser: `quality.min_claude_score`, `quality.min_heuristic_score`, `min_words`
+- Stricter/looser: `min_heuristic_score`, `min_words`, `max_articles`
 - Discovery: HN `queries`, point thresholds, `classics_years`; Lobsters `tags`
 - What counts as system design: `keywords` / `negative_keywords`
 
