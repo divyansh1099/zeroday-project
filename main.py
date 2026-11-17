@@ -9,7 +9,7 @@ Two ways to run it:
     python main.py build picks.yaml       # build the EPUB from the picks
     python main.py build picks.yaml --send   # ...and email it to your Kindle
 
-  Automatic mode (no editor, heuristic quality bar):
+  Automatic mode (the built-in editor reads every article's full text and judges it):
     python main.py auto [--send]
 
 Only articles that clear the bar are sent; the digest is never padded to hit a number.
@@ -25,7 +25,7 @@ from pathlib import Path
 import yaml
 from bs4 import BeautifulSoup
 
-from sysdigest import scoring, sources
+from sysdigest import editor, scoring, sources
 from sysdigest.epub import build_epub
 from sysdigest.extract import extract
 from sysdigest.mailer import send_to_kindle
@@ -64,6 +64,7 @@ def fetch(article, cfg):
     article["html"], article["words"], article["images"] = res
     article["depth"] = scoring.depth(article["words"], len(article["images"]), article["html"])
     article["heuristic"] = article["prelim"] + article["depth"]
+    article["editor"], article["reject"], _ = editor.judge(article["title"], article["html"])
     return article
 
 
@@ -73,7 +74,7 @@ def gather_pool(cfg):
         fetched = list(ex.map(lambda a: fetch(a, cfg), ranked[:cfg["candidate_pool"]]))
     pool = [a for a in fetched if a]
     print(f"{len(pool)} long-form articles fetched")
-    return sorted(pool, key=lambda a: a["heuristic"], reverse=True)
+    return sorted(pool, key=lambda a: (a["editor"], a["heuristic"]), reverse=True)
 
 
 def write_candidates(pool):
@@ -83,8 +84,9 @@ def write_candidates(pool):
     for f in CANDIDATES.glob("*.md"):
         f.unlink()
     POOL.write_bytes(pickle.dumps(pool))
-    index = ["# Candidates (best heuristic score first)\n",
-             "| # | heuristic | words | imgs | votes | title | url |", "|---|---|---|---|---|---|---|"]
+    index = ["# Candidates (built-in editor's score first)\n",
+             "| # | editor | words | imgs | votes | title | verdict / url |",
+             "|---|---|---|---|---|---|---|"]
     for i, a in enumerate(pool, 1):
         slug = re.sub(r"[^a-z0-9]+", "-", a["title"].lower()).strip("-")[:50]
         text = BeautifulSoup(a["html"], "lxml").get_text("\n")
@@ -92,22 +94,37 @@ def write_candidates(pool):
         (CANDIDATES / f"{i:02d}-{slug}.md").write_text(
             f"# {a['title']}\n\nURL: {a['url']}\nVotes: {a['points']} on {a['source']} "
             f"({a['comments']} comments)\nWords: {a['words']}  Images: {len(a['images'])}  "
-            f"Heuristic score: {a['heuristic']:.1f}\n\n---\n\n{text}\n")
-        index.append(f"| {i} | {a['heuristic']:.1f} | {a['words']} | {len(a['images'])} | "
-                     f"{a['points']} {a['source']} | {a['title']} | {a['url']} |")
+            f"Editor score: {a['editor']:.1f}/10 {a['reject']}\n\n---\n\n{text}\n")
+        index.append(f"| {i} | {a['editor']:.1f} | {a['words']} | {len(a['images'])} | "
+                     f"{a['points']} {a['source']} | {a['title']} | {a['reject'] or a['url']} |")
     (CANDIDATES / "INDEX.md").write_text("\n".join(index) + "\n")
     print(f"Wrote {len(pool)} candidates to {CANDIDATES}/ (see INDEX.md)")
 
 
-def heuristic_picks(pool, cfg, limit):
-    """Automatic mode: heuristic bar, at most one article per site."""
-    picked, sites = [], set()
-    for a in pool:  # already sorted best-first
+def auto_picks(pool, cfg, limit, verbose=True):
+    """Automatic mode: the built-in editor judges each article; the best few are kept.
+
+    Rules: score >= min_editor_score, at most one article per site, at most
+    max_postmortems outage write-ups so the digest stays varied. Never padded.
+    """
+    for a in pool:
+        a["editor"], a["reject"], _ = editor.judge(a["title"], a["html"])
+        # editor judgment dominates; community votes and depth only break ties
+        a["final"] = a["editor"] + (a["prelim"] + a["depth"]) / 100
+    picked, sites, postmortems = [], set(), 0
+    for a in sorted(pool, key=lambda a: a["final"], reverse=True):
         d = sources.domain(a["url"])
-        if a["heuristic"] >= cfg["min_heuristic_score"] and d not in sites and len(picked) < limit:
-            a["why"] = ""
+        is_pm = bool(editor.POSTMORTEM.search(a["title"]))
+        ok = (a["editor"] >= cfg["min_editor_score"] and d not in sites and len(picked) < limit
+              and not (is_pm and postmortems >= cfg["max_postmortems"]))
+        if ok:
+            a["why"] = editor.why_line(a["html"])
             picked.append(a)
             sites.add(d)
+            postmortems += is_pm
+        if verbose:
+            note = a["reject"] or ("" if ok else "passed, but over a variety limit or below the bar")
+            print(f"  {'+' if ok else '-'} [{a['editor']:4.1f}] {a['title'][:60]}  {note}")
     return picked
 
 
@@ -149,7 +166,7 @@ def main():
     b.add_argument("--send", action="store_true", help="email the EPUB to your Kindle")
     b.add_argument("--mark", action="store_true",
                    help="record the picks as sent without emailing (delivered another way)")
-    a = sub.add_parser("auto", help="pick with heuristics only, no editor")
+    a = sub.add_parser("auto", help="pick automatically with the built-in editor")
     a.add_argument("--send", action="store_true", help="email the EPUB to your Kindle")
     a.add_argument("-n", type=int, help="override max_articles")
     args = ap.parse_args()
@@ -163,7 +180,7 @@ def main():
         if deliver(picked, args.send) and (args.send or args.mark):
             Store().mark(picked)
     else:
-        picked = heuristic_picks(gather_pool(cfg), cfg, args.n or cfg["max_articles"])
+        picked = auto_picks(gather_pool(cfg), cfg, args.n or cfg["max_articles"])
         if deliver(picked, args.send) and args.send:
             Store().mark(picked)
 

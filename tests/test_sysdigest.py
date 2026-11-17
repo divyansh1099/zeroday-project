@@ -10,7 +10,7 @@ import yaml
 from PIL import Image
 
 import main
-from sysdigest import epub, extract, mailer, scoring, sources
+from sysdigest import editor, epub, extract, mailer, scoring, sources
 from sysdigest.store import Store
 
 CFG = yaml.safe_load(open("config.yaml"))
@@ -92,21 +92,61 @@ def test_extract_rejects_non_html():
 
 
 # --- selection ---------------------------------------------------------------
-def pooled(title, heuristic, domain="ex.com"):
+SYSTEMS_TEXT = (
+    "<h2>Design</h2><p>We migrated the database to a sharded cluster because a single leader "
+    "became the bottleneck at 40,000 writes per second. Instead of global consensus, each shard "
+    "replicates to three nodes, so read latency dropped from 120 ms to 9 ms. The trade-off is "
+    "cross-shard transactions, which we measured at 2% of traffic. As a result, cache hit rate "
+    "rose to 97% and we deployed the new storage layer across every region.</p>") * 30
+
+SHIP_TEXT = ("<p>The hull of a ship displaces water, and buoyancy keeps it afloat. Naval "
+             "architecture studies stability, the keel, ballast and how waves push the bow.</p>") * 40
+
+SECURITY_TEXT = SYSTEMS_TEXT[:2000] + ("<p>The attackers published a malicious payload that "
+    "exploited a vulnerability and compromised maintainers; the malware stole tokens.</p>") * 40
+
+SALES_TEXT = SYSTEMS_TEXT[:3000] + "<p>Book a demo. Sign up for a free trial. Get started today. Contact sales.</p>"
+
+
+@pytest.mark.parametrize("html,reason", [
+    (SHIP_TEXT, "off-topic"), (SECURITY_TEXT, "security"), (SALES_TEXT, "marketing"),
+])
+def test_editor_rejects_with_reason(html, reason):
+    score, why_not, _ = editor.judge("Some title", html)
+    assert score == 0 and reason in why_not
+
+
+def test_editor_rewards_substantive_systems_writing():
+    score, why_not, f = editor.judge("How we sharded our database", SYSTEMS_TEXT)
+    assert why_not == "" and score >= 8.5 and f["quant"] > 5
+
+
+def test_why_line_prefers_facts_over_boilerplate():
+    html = ("<p>We sincerely apologize to our customers and are offering service credits to everyone affected.</p>"
+            "<p>Read latency dropped from 120 ms to 9 ms once each shard replicated to three nodes.</p>")
+    assert editor.why_line(html).startswith("Read latency dropped")
+
+
+def pooled(title, html=SYSTEMS_TEXT, domain="ex.com"):
     a = article(title)
-    a.update(url=f"https://{domain}/{title}", heuristic=heuristic, html="<p>x</p>")
+    a.update(url=f"https://{domain}/{title.replace(' ', '-')}", html=html, prelim=5, depth=3, heuristic=8)
     return a
 
 
-def test_auto_mode_bar_and_one_per_site():
-    pool = [pooled("great", 15, "a.com"), pooled("also-great-same-site", 14, "a.com"),
-            pooled("good", 13, "c.com"), pooled("weak", 4, "b.com")]
-    picked = main.heuristic_picks(pool, CFG, limit=5)
-    assert [a["title"] for a in picked] == ["great", "good"]  # never padded with "weak"
+def test_auto_picks_bar_variety_and_no_padding():
+    pool = [pooled("Outage postmortem one", domain="a.com"), pooled("Outage postmortem two", domain="b.com"),
+            pooled("Outage postmortem three", domain="c.com"), pooled("Sharding deep dive", domain="a.com"),
+            pooled("Ship hulls", SHIP_TEXT, "d.com"), pooled("Caching at scale", domain="e.com")]
+    picked = main.auto_picks(pool, CFG, limit=10, verbose=False)
+    titles = [a["title"] for a in picked]
+    assert "Ship hulls" not in titles                                  # never padded with junk
+    assert sum("postmortem" in t for t in titles) == CFG["max_postmortems"]
+    assert len({sources.domain(a["url"]) for a in picked}) == len(picked)  # one per site
+    assert all(a["why"] for a in picked)
 
 
 def test_editor_picks_keep_order_and_why(tmp_path):
-    pool = [pooled("one", 1), pooled("two", 1)]
+    pool = [pooled("one"), pooled("two")]
     picks = tmp_path / "picks.yaml"
     picks.write_text("- url: https://ex.com/two/?utm_source=x\n  why: Read me first.\n"
                      "- url: https://ex.com/one\n")
@@ -119,12 +159,12 @@ def test_editor_picks_reject_unknown_url(tmp_path):
     picks = tmp_path / "picks.yaml"
     picks.write_text("- url: https://nowhere.com/x\n")
     with pytest.raises(SystemExit):
-        main.editor_picks(picks, [pooled("one", 1)])
+        main.editor_picks(picks, [pooled("one")])
 
 
 # --- output ------------------------------------------------------------------
 def test_epub_and_mail(tmp_path, monkeypatch):
-    a = pooled("t", 1)
+    a = pooled("t")
     a.update(words=2000, why="Worth it.", images=[("img_1.png", "image/png", image_bytes("PNG"))],
              html='<p>hello</p><img src="images/img_1.png"/>')
     path = epub.build_epub([a], tmp_path / "d.epub")
@@ -146,3 +186,27 @@ def test_store_dedupes(tmp_path):
     Store(path).mark([article()])
     s = Store(path)  # reloads from disk
     assert s.seen("https://ex.com/post") and not s.seen("https://ex.com/other")
+
+
+def test_editor_accepts_substantive_build_story_with_mixed_topics():
+    """Moderate systems vocabulary is fine when dense with first-hand numbers (r/Place-style)."""
+    frontend = ("<p>The canvas UI renders tiles with colors chosen by each person, and the mobile "
+                "app shows the same picture on phones and tablets for everyone taking part.</p>")
+    backend = ("<p>We measured 333,000 tile placements and found the backend handled 50,000 requests "
+               "per second with a cache in front of the database.</p>")
+    score, why_not, f = editor.judge("How we built it", (frontend * 6 + backend) * 25)
+    assert 20 <= f["topic"] < 30 and why_not == "" and score > 0
+
+
+def test_svg_diagrams_are_rasterized():
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" fill="blue"/></svg>'
+    resp = SimpleNamespace(status_code=200, content=svg, headers={"content-type": "image/svg+xml"})
+    with mock.patch("requests.get", return_value=resp):
+        name, mime, data = extract._fetch_image("https://ex.com/diagram.svg")
+    assert mime in ("image/png", "image/jpeg") and Image.open(io.BytesIO(data)).width == extract.MAX_IMG_WIDTH
+
+
+def test_why_line_skips_heading_residue():
+    html = ("<p>Mgmtd Requests Nodes don't need to maintain connections with every other node.</p>"
+            "<p>Each storage node splits files into chunks and replicates them across three servers for durability.</p>")
+    assert editor.why_line(html).startswith("Each storage node")

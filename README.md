@@ -12,12 +12,28 @@ Finds the **best** system design reads anywhere on the web and emails them to yo
 1. **On-topic:** the title must match system design keywords (popularity alone never qualifies).
 2. **Community-vetted:** at least 150 HN points for recent posts, 500 for classics, or 20 on Lobsters.
 3. **Long-form:** at least 1,200 words; diagrams, code and structure score extra.
-4. **Editor review:** someone actually reads the finalists and picks only the great ones,
-   adding a one-line "why it's worth reading" to each chapter. The editor can be you or an AI agent
-   such as Claude Code; no LLM API is involved.
+4. **Built-in editor** (`sysdigest/editor.py`, no LLM): reads each article's full text and judges it
+   the way a careful human editor would:
+   - *rejects* articles whose body isn't about software systems (e.g. "Naval Architecture"),
+     security-incident write-ups, sales/marketing pages and link-index pages;
+   - *scores* the rest 0–10 on how deeply they stay on systems, concrete numbers (TB, ms, req/s),
+     reasoning (trade-offs, root causes) and first-hand engineering ("we measured…");
+   - writes a "why read this" line by picking the most informative sentence from the opening.
+
+   It was calibrated against hand-labelled keep/cut decisions on real candidates and agrees on 18/18.
+   It's an approximation of a human editor: very good at rejecting junk, rougher at ranking
+   the good articles against each other.
+5. **Variety:** at most one article per site and two postmortems per digest.
 
 ## Two modes
-**Editor mode** (best quality):
+**Automatic mode** (the built-in editor picks; nothing else needed):
+```bash
+python main.py auto          # build only
+python main.py auto --send   # build and email (records the articles as sent)
+```
+
+**Manual editor mode** (you, or an agent such as Claude Code, make the final call; the
+built-in editor's score is shown next to each candidate):
 ```bash
 python main.py gather                    # writes out/candidates/INDEX.md + one .md per article
 # read the candidates, then write picks.yaml in reading order:
@@ -26,12 +42,6 @@ python main.py gather                    # writes out/candidates/INDEX.md + one 
 python main.py build picks.yaml          # builds out/system-design-digest-<date>.epub
 python main.py build picks.yaml --send   # ...and emails it to your Kindle (records it as sent)
 python main.py build picks.yaml --mark   # record as sent when delivered another way
-```
-
-**Automatic mode** (no editor; a heuristic bar of relevance + votes + depth):
-```bash
-python main.py auto          # build only
-python main.py auto --send   # build and email
 ```
 
 Everything sent is recorded in `sent.json` (commit it so the history follows you).
@@ -57,7 +67,7 @@ export SMTP_PASSWORD=your-app-password
 Automatic mode works with plain cron: `0 8 * * 6  cd /path/to/repo && python main.py auto --send`
 
 ## Tuning (`config.yaml`)
-- Stricter/looser: `min_heuristic_score`, `min_words`, `max_articles`
+- Stricter/looser: `min_editor_score`, `max_postmortems`, `min_words`, `max_articles`
 - Discovery: HN `queries`, point thresholds, `classics_years`; Lobsters `tags`
 - What counts as system design: `keywords` / `negative_keywords`
 

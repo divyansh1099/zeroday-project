@@ -5,3 +5,4 @@ beautifulsoup4>=4.12
 EbookLib>=0.18
 PyYAML>=6.0
 Pillow>=10.0
+cairosvg>=2.7

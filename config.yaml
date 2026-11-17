@@ -6,7 +6,8 @@ candidate_pool: 40       # how many top candidates to download per run
 min_words: 1200          # long-form only
 max_images_per_article: 12
 
-min_heuristic_score: 12.0   # bar for `auto` mode: relevance + votes + depth
+min_editor_score: 7.5    # built-in editor's bar (0-10); raise for an even pickier digest
+max_postmortems: 2       # keep the digest varied
 
 # Discovery engines (they link to any site; votes are a quality signal).
 hackernews:

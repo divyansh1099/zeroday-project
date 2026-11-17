@@ -3,6 +3,7 @@ import hashlib
 import io
 from urllib.parse import urljoin
 
+import cairosvg
 import requests
 from bs4 import BeautifulSoup
 from PIL import Image
@@ -31,15 +32,25 @@ def _image_src(img):
     return None
 
 
+def _is_svg(url, content_type, content):
+    return ("svg" in content_type or url.lower().split("?")[0].endswith(".svg")
+            or content.lstrip()[:200].lower().startswith((b"<svg", b"<?xml")) and b"<svg" in content[:2000])
+
+
 def _fetch_image(url):
     """Download an image and return (filename, mime, bytes); converts WebP/AVIF etc. to JPEG."""
     r = requests.get(url, headers=HEADERS, timeout=20)
     if r.status_code != 200 or len(r.content) > MAX_IMG_BYTES:
         return None
-    im = Image.open(io.BytesIO(r.content))
+    content = r.content
+    if _is_svg(url, r.headers.get("content-type", ""), content):
+        # Many engineering blogs draw diagrams as SVG; rasterize so every Kindle shows them.
+        content = cairosvg.svg2png(bytestring=content, output_width=MAX_IMG_WIDTH,
+                                   background_color="white")
+    im = Image.open(io.BytesIO(content))
     fmt = Image.MIME.get(im.format, "")
     if fmt in NATIVE and im.width <= MAX_IMG_WIDTH:
-        data, mime = r.content, fmt
+        data, mime = content, fmt
     else:
         if im.width > MAX_IMG_WIDTH:
             im = im.resize((MAX_IMG_WIDTH, round(im.height * MAX_IMG_WIDTH / im.width)))
